@@ -1,0 +1,3 @@
+# GitHub Pages(Jekyll) 빌드 설정: 문서 파일은 사이트에 싣지 않는다.
+exclude:
+  - README.md
