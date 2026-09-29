@@ -1,0 +1,66 @@
+/* Canonical values: tokens.md. Autodesk Brand Hub, 2025. */
+
+:root {
+  --adsk-black: #000000;
+  --adsk-white: #ffffff;
+  --adsk-hello-yellow: #ffff00;
+  --adsk-hello-yellow-200: #fdfda1;
+  --adsk-hello-yellow-600: #eee410;
+  --adsk-hello-yellow-700: #d7cb1d;
+
+  --adsk-warm-slate: #d5d5cb;
+  --adsk-warm-slate-100: #f5f5f0;
+  --adsk-warm-slate-300: #e4e4db;
+  --adsk-slate: #666666;
+  --adsk-slate-100: #e8e8e8;
+  --adsk-slate-200: #c9c9c9;
+  --adsk-slate-300: #a3a3a3;
+  --adsk-slate-400: #858585;
+
+  --adsk-dawn: #f09d4f;
+  --adsk-dawn-100: #ffe9c5;
+  --adsk-dawn-300: #fec681;
+  --adsk-dawn-600: #e68d3a;
+  --adsk-dawn-700: #cd7523;
+  --adsk-dusk: #f2520a;
+  --adsk-dusk-100: #ffddcd;
+  --adsk-dusk-300: #ff9667;
+  --adsk-dusk-600: #de4f0d;
+  --adsk-dusk-700: #d34621;
+  --adsk-twilight: #1d91d0;
+  --adsk-twilight-100: #bfe4f7;
+  --adsk-twilight-300: #4eb3e9;
+  --adsk-twilight-600: #1278af;
+  --adsk-twilight-700: #136b9a;
+  --adsk-morning: #2ad0a9;
+  --adsk-morning-100: #d5f6ee;
+  --adsk-morning-300: #7be4cc;
+  --adsk-morning-600: #24b291;
+  --adsk-morning-700: #21a183;
+
+  --adsk-font-display: "Artifakt Legend", "Noto Sans KR", "Noto Sans", sans-serif;
+  --adsk-font-body: "Artifakt Element", "Noto Sans KR", "Noto Sans", sans-serif;
+  --adsk-font-system: Arial, "Noto Sans KR", sans-serif;
+
+  --adsk-space-1: 4px;
+  --adsk-space-2: 8px;
+  --adsk-space-3: 12px;
+  --adsk-space-4: 16px;
+  --adsk-space-6: 24px;
+  --adsk-space-8: 32px;
+  --adsk-space-10: 40px;
+  --adsk-space-12: 48px;
+
+  --adsk-radius-1: 4px;
+  --adsk-radius-2: 8px;
+  --adsk-radius-4: 16px;
+  --adsk-radius-6: 24px;
+  --adsk-radius-8: 32px;
+
+  --adsk-text: var(--adsk-black);
+  --adsk-bg: var(--adsk-white);
+  --adsk-muted: var(--adsk-slate);
+  --adsk-line: var(--adsk-slate-200);
+  --adsk-surface: var(--adsk-warm-slate-100);
+  --adsk-accent: var(--adsk-hello-yellow);
+}

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <title>AutoCAD 러닝랩</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700&display=swap">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/cad.css">
+  <link rel="stylesheet" href="css/viewer.css">
+</head>
+<body>
+  <a class="skip" href="#app">내용으로 건너뛰기</a>
+  <header class="topbar">
+    <a class="brand" href="#/"><b>AutoCAD 러닝랩</b><small>입문부터 10년차까지</small></a>
+    <nav class="nav" aria-label="주 메뉴">
+      <a href="#/" data-nav="home">로드맵</a>
+      <a href="#/viewer" data-nav="viewer">3면도·3D 뷰어</a>
+      <a href="#/sandbox" data-nav="sandbox">CAD 연습장</a>
+      <a href="#/shortcuts" data-nav="shortcuts">단축키 훈련</a>
+      <a href="#/viewquiz" data-nav="viewquiz">도면 퀴즈</a>
+      <a href="#/piping" data-nav="piping">배관 도면 랩</a>
+      <a href="#/review" data-nav="review">도면 검토</a>
+    </nav>
+    <span class="progress-pill"></span>
+  </header>
+  <main id="app" tabindex="-1"></main>
+
+  <script src="vendor/three.min.js"></script>
+  <script src="js/core/util.js"></script>
+  <script src="js/data/lectures.js"></script>
+  <script src="js/data/curriculum.js"></script>
+  <script src="js/data/lessons-0.js"></script>
+  <script src="js/data/lessons-1.js"></script>
+  <script src="js/data/lessons-2.js"></script>
+  <script src="js/data/lessons-3.js"></script>
+  <script src="js/data/lessons-4.js"></script>
+  <script src="js/data/figures.js"></script>
+
+  <!-- VIEWER:BEGIN (3면도·3D 뷰어, 도면 퀴즈, 배관 도면 랩) -->
+  <script src="js/viewer/geo.js"></script>
+  <script src="js/viewer/hlr.js"></script>
+  <script src="js/viewer/viewer.js"></script>
+  <script src="js/data/models.js"></script>
+  <script src="js/data/viewquiz.js"></script>
+  <script src="js/viewer/piping-draw.js"></script>
+  <script src="js/pages/viewer.js"></script>
+  <script src="js/pages/viewquiz.js"></script>
+  <script src="js/pages/piping.js"></script>
+  <!-- VIEWER:END -->
+
+  <!-- CAD:BEGIN (CAD 연습장, 미션, 단축키) -->
+  <script src="js/cad/geom.js"></script>
+  <script src="js/cad/doc.js"></script>
+  <script src="js/cad/commands.js"></script>
+  <script src="js/cad/feedback.js"></script>
+  <script src="js/cad/check.js"></script>
+  <script src="js/cad/engine.js"></script>
+  <script src="js/cad/preview3d.js"></script>
+  <script src="js/data/shortcuts.js"></script>
+  <script src="js/data/missions.js"></script>
+  <script src="js/pages/sandbox.js"></script>
+  <script src="js/pages/shortcuts.js"></script>
+  <!-- CAD:END -->
+  <script src="js/data/shortcuts-extra.js"></script>
+
+  <script src="js/pages/roadmap.js"></script>
+  <script src="js/pages/lesson.js"></script>
+  <script src="js/pages/review.js"></script>
+  <script src="js/core/app.js"></script>
+</body>
+</html>
