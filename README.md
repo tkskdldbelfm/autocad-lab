@@ -32,7 +32,7 @@
 
 ```
 index.html            화면 틀과 스크립트 순서
-css/tokens.css        Autodesk 브랜드 토큰 (../.grok/skills/autodesk-brand 원본)
+css/tokens.css        색·간격·모서리 디자인 토큰
 css/app.css           공통 스타일 / cad.css 연습장 / viewer.css 뷰어
 vendor/three.min.js   three.js r158 (UMD)
 js/core/              util.js(네임스페이스·저장·링크), app.js(해시 라우터)
@@ -41,7 +41,6 @@ js/data/              curriculum.js + lessons-0..4.js(레슨), lectures.js(35강
 js/pages/             화면별 코드
 js/cad/               웹 CAD 엔진
 js/viewer/            3면도·3D 엔진
-../_legacy/           이전 버전(텍스트 커리큘럼) 보관본 (서버 공개 대상 밖)
 ```
 
 ## 내용 고치기
