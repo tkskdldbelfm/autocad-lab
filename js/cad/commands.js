@@ -200,8 +200,8 @@ window.ACAD = window.ACAD || {};
         const L = yield api.number(`직사각형의 길이 지정 <${f4(eng.recL || 10)}>:`, { def: eng.recL || 10 });
         const W = yield api.number(`직사각형의 폭 지정 <${f4(eng.recW || 10)}>:`, { def: eng.recW || 10 });
         eng.recL = L.value ?? 10; eng.recW = W.value ?? 10;
-        const q = yield api.point("다른 구석점 지정 또는 [영역(A)/치수(D)/회전(R)]:", { base: p1, rubber: false, preview: (c) => rectPl(p1, corner(c), opt) });
         const corner = (c) => { const u = { x: Math.cos(opt.rot), y: Math.sin(opt.rot) }, v = G.perp(u), d = G.sub(c, p1); return G.add(p1, G.add(G.mul(u, (Math.sign(G.dot(d, u)) || 1) * eng.recL), G.mul(v, (Math.sign(G.dot(d, v)) || 1) * eng.recW))); };
+        const q = yield api.point("다른 구석점 지정 또는 [영역(A)/치수(D)/회전(R)]:", { base: p1, rubber: false, preview: (c) => rectPl(p1, corner(c), opt) });
         api.add(rectPl(p1, q.pt ? corner(q.pt) : G.add(p1, { x: eng.recL, y: eng.recW }), opt));
         return;
       }
