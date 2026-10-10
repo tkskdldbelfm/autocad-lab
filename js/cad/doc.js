@@ -199,6 +199,21 @@ window.ACAD = window.ACAD || {};
     }
   }
 
+  // 미션 준비 도형(setup)과 테스트의 모범 답안이 함께 쓰는 그리기 도우미
+  Doc.setupApi = function (doc) {
+    const add = (e, o = {}) => { e.layer = o.layer || "0"; if (o.tag) e.tag = o.tag; doc.add(e); return e; };
+    return {
+      layer: (name, color = "white", lt = "CONTINUOUS") => doc.ensureLayer(name, color, lt),
+      line: (x1, y1, x2, y2, o) => add({ type: "line", a: { x: x1, y: y1 }, b: { x: x2, y: y2 } }, o),
+      lrect: (x, y, w, h, o) => { add({ type: "line", a: { x, y }, b: { x: x + w, y } }, o); add({ type: "line", a: { x: x + w, y }, b: { x: x + w, y: y + h } }, o); add({ type: "line", a: { x: x + w, y: y + h }, b: { x, y: y + h } }, o); add({ type: "line", a: { x, y: y + h }, b: { x, y } }, o); },
+      rect: (x, y, w, h, o) => add({ type: "pline", pts: [[x, y], [x + w, y], [x + w, y + h], [x, y + h]].map(([a, b]) => ({ x: a, y: b, b: 0 })), closed: true }, o),
+      pline: (pts, closed, o) => add({ type: "pline", pts: pts.map(([a, b, bb]) => ({ x: a, y: b, b: bb || 0 })), closed: !!closed }, o),
+      circle: (x, y, r, o) => add({ type: "circle", c: { x, y }, r }, o),
+      arc: (x, y, r, d0, d1, o) => add({ type: "arc", c: { x, y }, r, a0: (d0 * Math.PI) / 180, a1: (d1 * Math.PI) / 180 }, o),
+      text: (x, y, h, s, o) => add({ type: "text", p: { x, y }, h, s, rot: 0 }, { layer: "문자", ...o }),
+    };
+  };
+
   ACAD.CadDoc = Doc;
   ACAD.CadColors = COLORS;
   ACAD.CadLtypes = LTYPES;

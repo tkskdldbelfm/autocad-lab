@@ -11,8 +11,11 @@ window.ACAD = window.ACAD || {};
   ];
 
   function mount(el, ctx) {
-    const mission = ctx.query.mission ? ACAD.mission(ctx.query.mission) : null;
-    const saveKey = "sbx:" + (mission ? mission.id : "free");
+    const base = ctx.query.mission ? ACAD.mission(ctx.query.mission) : null;
+    const saveKey = "sbx:" + (base ? base.id : "free");
+    // 반복 드릴(make가 있는 미션)은 seed로 숫자를 정한다. 다시 열면 같은 문제, '새 문제'면 새 seed.
+    let seed = base && base.make ? (ACAD.store.get(saveKey, null) || {}).seed || ACAD.newSeed() : 0;
+    let mission = ACAD.missionInstance(base, seed);
     el.innerHTML = `
       <div class="page wide sbx">
         <div class="sbx-grid">
@@ -54,21 +57,11 @@ window.ACAD = window.ACAD || {};
     let passed = mission ? ACAD.progress.has("mission:" + mission.id) : false;
     let focus = null; // { id, why }
     let lastTip = null;
+    let restoreFailed = false;
+    const drillCount = () => +ACAD.store.get("drill:" + (base ? base.id : ""), 0) || 0;
 
     // ---------- 미션 적용 ----------
-    function S(doc) {
-      const add = (e, o = {}) => { e.layer = o.layer || "0"; if (o.tag) e.tag = o.tag; doc.add(e); return e; };
-      return {
-        layer: (name, color = "white", lt = "CONTINUOUS") => doc.ensureLayer(name, color, lt),
-        line: (x1, y1, x2, y2, o) => add({ type: "line", a: { x: x1, y: y1 }, b: { x: x2, y: y2 } }, o),
-        lrect: (x, y, w, h, o) => { add({ type: "line", a: { x, y }, b: { x: x + w, y } }, o); add({ type: "line", a: { x: x + w, y }, b: { x: x + w, y: y + h } }, o); add({ type: "line", a: { x: x + w, y: y + h }, b: { x, y: y + h } }, o); add({ type: "line", a: { x, y: y + h }, b: { x, y } }, o); },
-        rect: (x, y, w, h, o) => add({ type: "pline", pts: [[x, y], [x + w, y], [x + w, y + h], [x, y + h]].map(([a, b]) => ({ x: a, y: b, b: 0 })), closed: true }, o),
-        pline: (pts, closed, o) => add({ type: "pline", pts: pts.map(([a, b, bb]) => ({ x: a, y: b, b: bb || 0 })), closed: !!closed }, o),
-        circle: (x, y, r, o) => add({ type: "circle", c: { x, y }, r }, o),
-        arc: (x, y, r, d0, d1, o) => add({ type: "arc", c: { x, y }, r, a0: (d0 * Math.PI) / 180, a1: (d1 * Math.PI) / 180 }, o),
-        text: (x, y, h, s, o) => add({ type: "text", p: { x, y }, h, s, rot: 0 }, { layer: "문자", ...o }),
-      };
-    }
+    const S = (doc) => ACAD.CadDoc.setupApi(doc);
     function freshDoc() {
       const doc = new ACAD.CadDoc();
       if (mission && mission.setup) mission.setup(S(doc));
@@ -82,7 +75,8 @@ window.ACAD = window.ACAD || {};
       let doc = freshDoc();
       const saved = restore ? ACAD.store.get(saveKey, null) : null;
       if (saved && saved.snap) {
-        try { doc.restore(saved.snap); (saved.done || []).forEach((i) => stepDone.add(i)); } catch (e) { doc = freshDoc(); }
+        try { doc.restore(saved.snap); (saved.done || []).forEach((i) => stepDone.add(i)); }
+        catch (e) { doc = freshDoc(); stepDone.clear(); restoreFailed = true; }
       }
       eng.setDoc(doc);
       eng.history.length = 0; eng.inputs.length = 0; for (const k in eng.events) delete eng.events[k];
@@ -93,7 +87,8 @@ window.ACAD = window.ACAD || {};
       if (v) eng.zoomBox({ x0: v[0], y0: v[1], x1: v[2], y1: v[3] }, 0.04, false);
       else eng.zoomLimits();
       eng.print(mission ? `미션: ${mission.title} — 왼쪽 단계를 따라 해 보세요.` : "자유 연습: 명령어를 입력하고 Space. 예) L, C, REC", "sys");
-      if (saved && saved.snap) eng.print("이전에 그리던 도면을 불러왔습니다. 처음부터 하려면 '초기화'.", "sys");
+      if (restoreFailed) { restoreFailed = false; eng.print("저장된 도면을 불러오지 못해 새로 시작합니다(저장 형식이 바뀌었거나 손상됨).", "err"); }
+      else if (saved && saved.snap) eng.print("이전에 그리던 도면을 불러왔습니다. 처음부터 하려면 '초기화'.", "sys");
       syncLayers();
       update(true);
     }
@@ -108,24 +103,26 @@ window.ACAD = window.ACAD || {};
           ${Object.entries(groups).map(([st, list]) => `
             <details class="ms-group" ${st === "0" || st === "1" ? "open" : ""}>
               <summary><b>${STAGE_KO[st]}</b> <span class="muted small">${list.filter((m) => ACAD.progress.has("mission:" + m.id)).length}/${list.length}</span></summary>
-              <ol class="ms-list">${list.map((m) => `<li><a href="${ACAD.link.sandbox(m.id)}" class="${ACAD.progress.has("mission:" + m.id) ? "done" : ""}"><span class="mono tiny">${m.lecture ? "강의 " + m.lecture : m.id}</span> ${ACAD.esc(m.title)}</a></li>`).join("")}</ol>
+              <ol class="ms-list">${list.map((m) => `<li><a href="${ACAD.link.sandbox(m.id)}" class="${ACAD.progress.has("mission:" + m.id) ? "done" : ""}"><span class="mono tiny">${m.lecture ? "강의 " + m.lecture : m.make ? "드릴" : m.reference ? "3D" : m.id}</span> ${ACAD.esc(m.title)}</a></li>`).join("")}</ol>
             </details>`).join("")}`;
         return;
       }
       const lec = mission.lecture && ACAD.lecture && ACAD.lecture(mission.lecture);
-      const i = ACAD.missions.indexOf(mission);
+      const i = ACAD.missions.indexOf(base);
       const next = ACAD.missions[i + 1];
       left.innerHTML = `
         <div class="sbx-head">
           <div class="crumbs"><a href="${ACAD.link.sandbox()}">CAD 연습장</a> · <span class="tag">${STAGE_KO[mission.stage]}</span></div>
           <h2>${ACAD.esc(mission.title)}</h2>
           <p class="small">${ACAD.esc(mission.goal)}</p>
+          ${mission.make ? `<p class="small"><button type="button" class="btn small" data-act="newdrill">새 문제</button> <span class="muted">완료 ${drillCount()}회 · 숫자가 매번 바뀝니다</span></p>` : ""}
           ${lec ? `<a class="lec-link" href="${lec.url}" target="_blank" rel="noopener"><img src="${lec.thumb}" alt="" loading="lazy" width="96" height="54"><span><b>CAD 기초강의 ${lec.no}</b><br><span class="small">${ACAD.esc(lec.title)} ↗</span></span></a>` : ""}
         </div>
         ${mission.reference ? `<div class="ms-ref"><div class="ms-ref-view"></div><p class="tiny muted">끌어서 돌려 보세요. 빨간 화살표 = 정면(정면도를 보는 방향)</p></div>` : ""}
         <ol class="ms-steps">${mission.steps.map((s, k) => `<li data-k="${k}" class="${stepDone.has(k) ? "ok" : ""}"><i aria-hidden="true"></i><span>${ACAD.esc(s.text)}</span></li>`).join("")}</ol>
         <div class="ms-pass" ${passed && stepDone.size === mission.steps.length ? "" : "hidden"}>
-          <b>미션 완료</b><p class="small">잘했습니다. 오른쪽 '지금 그린 것'에서 결과를 다시 확인해 보세요.</p>
+          <b>미션 완료</b><p class="small">${mission.make ? `반복 드릴 ${drillCount()}회 완료. 숫자가 바뀐 새 문제로 손에 익을 때까지 반복하세요.` : "잘했습니다. 오른쪽 '지금 그린 것'에서 결과를 다시 확인해 보세요."}</p>
+          ${mission.make ? `<button type="button" class="btn primary small" data-act="newdrill">새 문제</button>` : ""}
           ${next ? `<a class="btn accent small" href="${ACAD.link.sandbox(next.id)}">다음 미션: ${ACAD.esc(next.title)}</a>` : `<a class="btn small" href="${ACAD.link.sandbox()}">미션 목록</a>`}
         </div>
         ${mission.hints && mission.hints.length ? `<details class="ms-hints"><summary>힌트 ${mission.hints.length}개</summary><ul>${mission.hints.map((h) => `<li>${ACAD.esc(h)}</li>`).join("")}</ul></details>` : ""}
@@ -155,6 +152,7 @@ window.ACAD = window.ACAD || {};
           const first = !ACAD.progress.has("mission:" + mission.id);
           passed = true;
           ACAD.progress.mark("mission:" + mission.id);
+          if (mission.make) { ACAD.store.set("drill:" + mission.id, drillCount() + 1); renderLeft(); }
           left.querySelector(".ms-pass").hidden = false;
           celebrate(first);
         }
@@ -171,7 +169,7 @@ window.ACAD = window.ACAD || {};
     let saveT = 0;
     function save() {
       clearTimeout(saveT);
-      saveT = setTimeout(() => ACAD.store.set(saveKey, { snap: eng.doc.snapshot(), done: [...stepDone] }), 600);
+      saveT = setTimeout(() => ACAD.store.set(saveKey, { snap: eng.doc.snapshot(), done: [...stepDone], seed }), 600);
     }
 
     // ---------- 오른쪽: 피드백 ----------
@@ -379,14 +377,20 @@ window.ACAD = window.ACAD || {};
         setTimeout(() => URL.revokeObjectURL(a.href), 2000);
         eng.print("DXF(R12)로 저장했습니다. 실제 AutoCAD에서 열어 비교해 보세요.", "sys");
       }
-      if (b.dataset.act === "reset") {
-        if (eng.cmd) eng.cancelCommand(true);
-        stepDone.clear(); focus = null;
-        ACAD.store.set(saveKey, null);
-        renderLeft();
-        applyMission(false);
-      }
+      if (b.dataset.act === "reset") resetMission(false);
     });
+    left.addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-act=newdrill]");
+      if (b) resetMission(true);
+    });
+    function resetMission(newProblem) {
+      if (eng.cmd) eng.cancelCommand(true);
+      stepDone.clear(); focus = null;
+      if (newProblem && base && base.make) { seed = ACAD.newSeed(); mission = ACAD.missionInstance(base, seed); }
+      ACAD.store.set(saveKey, base && base.make ? { seed } : null);
+      renderLeft();
+      applyMission(false);
+    }
     $(".rb-layer").addEventListener("change", (e) => {
       const name = e.target.value;
       if (eng.sel.size && !eng.cmd) { moveSelToLayer(name); eng.sel.clear(); eng.selChanged(); syncLayers(); return; }
@@ -413,7 +417,7 @@ window.ACAD = window.ACAD || {};
     return () => {
       clearTimeout(upT); clearTimeout(prevT); clearTimeout(saveT);
       timers.forEach(clearTimeout);
-      ACAD.store.set(saveKey, { snap: eng.doc.snapshot(), done: [...stepDone] });
+      ACAD.store.set(saveKey, { snap: eng.doc.snapshot(), done: [...stepDone], seed });
       eng.destroy();
       if (ACAD.sandboxEngine === eng) ACAD.sandboxEngine = null;
       if (prev3d) prev3d.destroy();

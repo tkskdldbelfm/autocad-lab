@@ -37,16 +37,35 @@ css/app.css           공통 스타일 / cad.css 연습장 / viewer.css 뷰어
 vendor/three.min.js   three.js r158 (UMD)
 js/core/              util.js(네임스페이스·저장·링크), app.js(해시 라우터)
 js/data/              curriculum.js + lessons-0..4.js(레슨), lectures.js(35강),
-                      figures.js(레슨 도해), missions.js, shortcuts.js, models.js, viewquiz.js
+                      figures.js(레슨 도해), missions.js, missions-extra.js(반복 드릴·3D 따라그리기),
+                      shortcuts.js, models.js, viewquiz.js
 js/pages/             화면별 코드
 js/cad/               웹 CAD 엔진
 js/viewer/            3면도·3D 엔진
+_tests/run.js         자동 검사 (사이트에는 올라가지 않음)
 ```
 
 ## 내용 고치기
 
 - **레슨 추가·수정**: `js/data/lessons-<단계>.js`. `practice`의 `type`은 `sandbox | viewer | quiz | piping | shortcuts | review`, `id`는 미션·모델·퀴즈 세트·탭 id입니다. 본문에 `<div data-figure="coords"></div>`(figures.js의 도해)나 `<div data-figure="viewer:block-step"></div>`(3D 뷰어 삽입)를 넣을 수 있습니다.
 - **미션**: `js/data/missions.js`. 단계별 `check(ctx)`가 그린 객체를 채점합니다.
+- **반복 드릴**: `js/data/missions-extra.js`의 `drills`. `make(r)`가 난수(`r.step`, `r.pick`)로 숫자를 정해 `goal`·`steps`·`setup`을 돌려줍니다. 연습장의 '새 문제' 버튼이 숫자를 바꿉니다. `solve(S, m)`에 모범 답안을 그려 두면 자동 검사가 판정을 확인합니다.
+- **3D 따라그리기**: 같은 파일의 `view3d({...})`. `models.js`의 모델 id와 정면도·평면도·우측면도의 선(`vis`), 숨은선(`hid`), 원(`circ`)을 각 투상도 왼쪽 아래 기준 좌표로 적습니다. 자동 검사가 이 정답표를 3D 모델 꼭짓점과 대조합니다.
+- **확인 문제 보기 순서**: 화면에서 레슨·문제마다 고정된 순서로 섞입니다. 데이터의 `a`(정답 번호)는 원래 보기 순서 기준 그대로 적습니다.
+
+### 자동 검사
+
+```
+node _tests/run.js
+```
+
+브라우저 없이 `index.html`의 스크립트를 순서대로 읽고 다음을 확인합니다. 내용을 고친 뒤 커밋하기 전에 돌리세요.
+
+- 레슨 id 중복, 문제 형식(정답 번호 범위, 해설), 강의 01–35 연결, 화면 정답 위치 쏠림
+- 레슨의 실습 링크가 실제 미션·모델·퀴즈·검토 시트를 가리키는지
+- 미션마다 빈 도면은 통과하지 않고 모범 답안은 모두 통과하는지(드릴은 seed 40개)
+- 3면도 정답표가 3D 모델 꼭짓점과 맞는지
+- 드릴 일부를 실제 연습장 명령(CIRCLE, OFFSET, FILLET, ARRAYPOLAR, ARRAYRECT)으로 풀어 통과하는지
 - **3D 모델**: `js/data/models.js`. 부품마다 id와 설명을 주면 3면도와 하이라이트가 자동으로 따라옵니다.
 - **도면 검토 시트**: `js/pages/review.js`의 `sheets`. 오류 위치(x, y, r)와 설명을 적습니다.
 

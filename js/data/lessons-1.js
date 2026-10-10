@@ -48,7 +48,7 @@ ACAD.addLessons("1", [
       <div class="callout tip"><b>순서</b>간격띄우기로 선을 넉넉히 만든다 → 자르기·연장으로 모서리를 정리한다. 도면의 70%는 이 세 명령으로 그립니다.</div>`,
     points: ["평행선은 OFFSET", "빠른 모드: 자를 곳만 클릭", "Shift로 자르기↔연장 전환"],
     commands: ["OFFSET", "TRIM", "EXTEND"],
-    practice: [{ type: "sandbox", id: "m1-17", label: "간격띄우기·자르기·연장" }],
+    practice: [{ type: "sandbox", id: "m1-17", label: "간격띄우기·자르기·연장" }, { type: "sandbox", id: "d1-offset", label: "반복 드릴: 간격띄우기" }],
     check: [
       { q: "TRIM 중에 Shift를 누른 채 선을 고르면?", o: ["선이 지워진다", "그 선이 연장된다", "명령이 취소된다", "복사된다"], a: 1, why: "TRIM과 EXTEND는 Shift로 서로 바뀝니다." },
     ],
@@ -161,7 +161,7 @@ ACAD.addLessons("1", [
       <div class="callout tip"><b>배관에서</b>배관 중심선의 꺾이는 곳을 FILLET으로 둥글게 하면 엘보의 중심선이 됩니다. 4" 롱 레디우스 엘보는 반지름 152.4(= 1.5 × 4인치)입니다. 3년차에서 다시 나옵니다.</div>`,
     points: ["R 먼저 정한다", "남길 쪽을 클릭", "R0 = 정확한 모서리"],
     commands: ["FILLET"],
-    practice: [{ type: "sandbox", id: "m1-24", label: "모깎기 R10, R0" }],
+    practice: [{ type: "sandbox", id: "m1-24", label: "모깎기 R10, R0" }, { type: "sandbox", id: "d1-fillet", label: "반복 드릴: 모깎기 R·R0" }],
     check: [
       { q: "두 선을 둥글게 하지 않고 정확한 모서리로 만나게 하려면?", o: ["FILLET 반지름 0", "CHAMFER 거리 10", "EXTEND만", "JOIN"], a: 0, why: "반지름 0의 모깎기는 두 선을 연장·자르기해 정확한 모서리로 맞춥니다." },
     ],
@@ -311,7 +311,7 @@ ACAD.addLessons("1", [
       <div class="callout tip"><b>플랜지 볼트 구멍</b>ASME B16.5 Class 150 4" 플랜지는 볼트 구멍이 8개입니다. 원형 배열 8개, 360°로 한 번에 그립니다.</div>`,
     points: ["직사각형: 행·열·간격", "원형: 중심·개수·각도", "연관 배열은 나중에 수정 가능"],
     commands: ["ARRAY", "ARRAYRECT", "ARRAYPOLAR", "ARRAYPATH"],
-    practice: [{ type: "sandbox", id: "m1-32", label: "직사각형·원형·경로 배열" }],
+    practice: [{ type: "sandbox", id: "m1-32", label: "직사각형·원형·경로 배열" }, { type: "sandbox", id: "d1-array", label: "반복 드릴: 원형·직사각형 배열" }],
     check: [
       { q: "플랜지 둘레에 볼트 구멍 8개를 같은 간격으로 놓으려면?", o: ["ARRAYRECT 8열", "ARRAYPOLAR 항목 8, 360°", "COPY 8번", "OFFSET 8번"], a: 1, why: "원형 배열은 중심 둘레에 같은 각도 간격으로 배치합니다." },
     ],
@@ -368,7 +368,7 @@ ACAD.addLessons("1", [
       <div class="callout yellow"><b>여기까지 끝내면</b>강의 1–35의 기능으로 기계 부품도 대부분을 그릴 수 있습니다. 다음 레슨들에서 치수, 숨은선, 단면, 3면도 작도를 배워 "읽고 그리는" 사람이 됩니다.</div>`,
     points: ["순서를 먼저 계획", "기준선 → 외곽 → 원 → 반복 → 정리 → 확인"],
     commands: ["LINE", "OFFSET", "TRIM", "FILLET", "CIRCLE", "MIRROR", "ARRAY"],
-    practice: [{ type: "sandbox", id: "m1-35", label: "종합 예제" }, { type: "shortcuts", id: "drill", label: "단축키 드릴로 속도 점검" }],
+    practice: [{ type: "sandbox", id: "m1-35", label: "종합 예제" }, { type: "shortcuts", id: "drill", label: "단축키 드릴로 속도 점검" }, { type: "sandbox", id: "d1-array", label: "반복 드릴: 배열" }],
     check: [
       { q: "대칭 부품을 가장 빨리 그리는 순서는?", o: ["전부 그리고 확인", "중심선 → 반쪽 → MIRROR", "원부터", "치수부터"], a: 1, why: "대칭 기준(중심선)을 먼저 두고 반만 그린 뒤 대칭 복사합니다." },
     ],
@@ -437,6 +437,8 @@ ACAD.addLessons("1", [
       { type: "viewer", id: "shaft-flange&section=A", label: "플랜지 축 — 축은 해칭하지 않는다" },
       { type: "quiz", id: "section", label: "단면도 읽기 퀴즈" },
       { type: "quiz", id: "hidden", label: "숨은선·중심선 읽기 퀴즈" },
+      { type: "sandbox", id: "m1-v2", label: "3D 따라그리기: 홈 블록(숨은선)" },
+      { type: "sandbox", id: "m1-v3", label: "3D 따라그리기: 구멍 판(숨은선)" },
     ],
     check: [
       { q: "단면도에서 해칭이 없는 영역은?", o: ["잘린 면", "잘리지 않은 뒤쪽이 보이는 부분", "숨은선", "오류"], a: 1, why: "해칭은 절단면에만 넣습니다." },
@@ -458,7 +460,7 @@ ACAD.addLessons("1", [
       <div class="callout tip"><b>CAD에서는</b>투상선 대신 XLINE(XL)이나 객체 스냅 추적(F11)으로 높이·폭을 맞춥니다. 연습장 미션에서는 3D 참고 모델을 옆에 띄워 두고 그립니다.</div>`,
     points: ["정면도 먼저", "투상선으로 맞춘다", "마지막에 숨은선·중심선"],
     commands: ["XLINE", "F11", "LAYER"],
-    practice: [{ type: "sandbox", id: "m1-v1", label: "3D 보고 정면도·평면도 그리기" }, { type: "quiz", id: "missing", label: "빠진 한 면 고르기" }],
+    practice: [{ type: "sandbox", id: "m1-v1", label: "3D 보고 정면도·평면도 그리기" }, { type: "quiz", id: "missing", label: "빠진 한 면 고르기" }, { type: "sandbox", id: "m1-v4", label: "3D 따라그리기: 경사면 블록" }],
     check: [
       { q: "우측면도의 가로(깊이)는 어느 도면에서 옮겨 옵니까?", o: ["정면도의 가로", "평면도의 세로", "정면도의 세로", "배치도"], a: 1, why: "깊이는 평면도의 세로 방향과 우측면도의 가로 방향이 같습니다." },
     ],

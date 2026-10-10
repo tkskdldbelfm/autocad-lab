@@ -234,11 +234,27 @@ window.ACAD = window.ACAD || {};
     const arrow = new THREE.ArrowHelper(new THREE.Vector3(0, 0, -1), new THREE.Vector3(50, 25, 55), 40, 0xf2520a, 10, 8);
     view.root.add(arrow);
   }
+  // 3면도 뷰어 모델(ACAD.models)을 그대로 띄운다. 모델 좌표: X 오른쪽, Y 뒤, Z 위
+  function viewerModel(view, model) {
+    const prep = ACAD.HLR.prepare(model);
+    for (const g of prep.geoms) {
+      if (!g.attributes.position.count) continue;
+      const c = g.clone();
+      c.rotateX(-Math.PI / 2); // (x, y, z) → THREE (x, z, -y)
+      view.addMesh(c, 0xd5d5cb);
+    }
+    const { min, max } = prep.bb;
+    const len = Math.max(max[0] - min[0], max[2] - min[2]) * 0.4;
+    const from = new THREE.Vector3((min[0] + max[0]) / 2, (min[2] + max[2]) / 2, -min[1] + len * 1.4);
+    view.root.add(new THREE.ArrowHelper(new THREE.Vector3(0, 0, -1), from, len, 0xf2520a, len * 0.25, len * 0.2));
+  }
   const REF = { "step-block": stepBlock };
   function reference(el, id) {
     const v = new Orbit3D(el, { bg: 0xf5f5f0, theta: 1.05, phi: 1.0 });
     if (!v.ok) return v;
-    (REF[id] || stepBlock)(v);
+    if (REF[id]) REF[id](v);
+    else if (ACAD.models && ACAD.models[id] && ACAD.HLR) viewerModel(v, ACAD.models[id]);
+    else stepBlock(v);
     v.fit();
     return v;
   }

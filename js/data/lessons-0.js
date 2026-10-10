@@ -46,6 +46,8 @@ ACAD.addLessons("0", [
     practice: [
       { type: "viewer", id: "block-step", label: "계단 블록 — 유리상자 펼치기" },
       { type: "viewer", id: "block-basic", label: "직육면체로 3면도 감 잡기" },
+      { type: "sandbox", id: "m0-v1", label: "3D 따라그리기: 직육면체 3면도" },
+      { type: "sandbox", id: "m0-v2", label: "3D 따라그리기: 계단 블록 3면도" },
     ],
     check: [
       { q: "제3각법에서 평면도는 정면도의 어디에 둡니까?", o: ["위", "아래", "왼쪽", "오른쪽"], a: 0, why: "제3각법은 본 쪽에 그림을 둡니다. 위에서 본 평면도는 정면도 위입니다." },
@@ -175,7 +177,7 @@ ACAD.addLessons("0", [
       <div class="callout warn"><b>동적 입력(F12)이 켜져 있으면</b>두 번째 점부터는 @를 안 쳐도 상대좌표로 받아들입니다. 이때 절대좌표를 쓰려면 앞에 #을 붙입니다(#100,60). 연습장도 같은 규칙을 따르고, 어떤 좌표로 해석했는지 피드백 창에 적어 줍니다.</div>`,
     points: ["x,y = 원점 기준", "@ = 직전 점 기준", "0°는 오른쪽, 반시계가 +"],
     commands: ["LINE", "F12"],
-    practice: [{ type: "sandbox", id: "m0-04", label: "절대좌표로 삼각형 그리기" }],
+    practice: [{ type: "sandbox", id: "m0-04", label: "절대좌표로 삼각형 그리기" }, { type: "sandbox", id: "d0-abs", label: "반복 드릴: 절대좌표" }],
     check: [
       { q: "직전 점에서 왼쪽으로 50 가는 입력은?", o: ["@50,0", "@-50,0", "-50,0", "@0,-50"], a: 1, why: "왼쪽은 X의 음(−) 방향입니다. 직전 점 기준이므로 @가 붙습니다." },
       { q: "@100<90 은 어느 방향입니까?", o: ["오른쪽", "위", "왼쪽", "아래"], a: 1, why: "90°는 위쪽(Y+)입니다." },
@@ -233,7 +235,7 @@ ACAD.addLessons("0", [
       <div class="callout tip"><b>닫기 옵션</b>LINE 중에 C를 치면 시작점과 이어 닫힙니다. 마지막 점을 눈으로 찍으면 0.01만 어긋나도 열린 도형이 됩니다. 연습장은 이런 틈을 찾아 빨간 표식으로 알려 줍니다.</div>`,
     points: ["치수 = 직전 점에서의 거리", "왼쪽·아래는 음수", "마지막은 C로 닫기"],
     commands: ["LINE"],
-    practice: [{ type: "sandbox", id: "m0-06", label: "상대좌표로 계단 도형" }],
+    practice: [{ type: "sandbox", id: "m0-06", label: "상대좌표로 계단 도형" }, { type: "sandbox", id: "d0-rel", label: "반복 드릴: 상대좌표" }],
     check: [
       { q: "LINE 중 시작점과 자동으로 이어 닫는 옵션은?", o: ["U", "C", "E", "X"], a: 1, why: "C(닫기)는 시작점과 연결해 닫고 명령을 끝냅니다. U는 마지막 선분 취소입니다." },
     ],
@@ -255,7 +257,7 @@ ACAD.addLessons("0", [
       <div data-figure="angles"></div>`,
     points: ["@길이<각도", "각도 = 진행 방향", "3시 방향이 0°"],
     commands: ["LINE"],
-    practice: [{ type: "sandbox", id: "m0-07", label: "상대극좌표로 정삼각형·기울어진 도형" }],
+    practice: [{ type: "sandbox", id: "m0-07", label: "상대극좌표로 정삼각형·기울어진 도형" }, { type: "sandbox", id: "d0-polar", label: "반복 드릴: 상대극좌표" }],
     check: [
       { q: "한 변 50인 정사각형을 반시계로 그릴 때, 세 번째 변(왼쪽으로 가는 변)의 입력은?", o: ["@50<90", "@50<180", "@50<270", "@50<0"], a: 1, why: "왼쪽으로 가는 방향은 180°입니다." },
     ],
@@ -378,7 +380,7 @@ ACAD.addLessons("0", [
       <p>도면의 <b>Ø</b>는 지름, <b>R</b>은 반지름입니다. Ø100을 반지름 100으로 그리는 실수가 가장 흔합니다.</p>`,
     points: ["Ø = 지름, R = 반지름", "T = 접선 접선 반지름", "TTT는 리본에서"],
     commands: ["CIRCLE"],
-    practice: [{ type: "sandbox", id: "m0-13", label: "원 6가지 방법 모두 써 보기" }],
+    practice: [{ type: "sandbox", id: "m0-13", label: "원 6가지 방법 모두 써 보기" }, { type: "sandbox", id: "d0-circle", label: "반복 드릴: 원 네 가지" }],
     check: [
       { q: "도면에 Ø80이라고 적힌 원을 CIRCLE 중심-반지름으로 그리면 몇을 입력합니까?", o: ["80", "40", "160", "8"], a: 1, why: "Ø80은 지름 80이므로 반지름은 40입니다. 또는 D 옵션 뒤에 80을 입력합니다." },
     ],

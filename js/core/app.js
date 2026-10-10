@@ -43,8 +43,20 @@
     pill.textContent = `레슨 ${ACAD.progress.count("lesson:")}/${total} 완료`;
   }
 
+  // 저장 실패 안내(한 번만). 닫기 전까지 모든 화면 위에 남는다.
+  function storeFailNotice() {
+    if (document.querySelector(".store-warn")) return;
+    const d = document.createElement("div");
+    d.className = "store-warn";
+    d.setAttribute("role", "alert");
+    d.innerHTML = `<span><b>진행 기록을 저장하지 못했습니다.</b> 브라우저의 사생활 보호 모드이거나 저장 공간이 가득 찼습니다. 이 창을 닫으면 완료 표시와 그리던 도면이 사라집니다.</span><button type="button" class="btn ghost small">닫기</button>`;
+    d.querySelector("button").addEventListener("click", () => d.remove());
+    document.body.appendChild(d);
+  }
+
   ACAD.route = route;
   ACAD.bus.on("progress", updatePill);
+  ACAD.bus.on("store:fail", storeFailNotice);
   window.addEventListener("hashchange", route);
   document.addEventListener("DOMContentLoaded", route);
 })();

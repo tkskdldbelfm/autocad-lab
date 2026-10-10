@@ -22,10 +22,32 @@ ACAD.store = {
       return raw == null ? fallback : JSON.parse(raw);
     } catch { return fallback; }
   },
+  // 저장에 실패하면 false. 처음 실패할 때 한 번만 화면에 알린다(사생활 보호 모드, 용량 초과 등).
   set(key, value) {
-    try { localStorage.setItem(this.prefix + key, JSON.stringify(value)); } catch { /* 저장 불가 환경 */ }
+    try { localStorage.setItem(this.prefix + key, JSON.stringify(value)); return true; }
+    catch (e) {
+      if (!this.failed) { this.failed = true; ACAD.bus.emit("store:fail", { key, error: e }); }
+      return false;
+    }
   },
 };
+
+// 난수. seed가 같으면 같은 순서(반복 드릴 문제, 확인 문제 보기 섞기).
+ACAD.rng = function (seed) {
+  let a = seed >>> 0 || 1;
+  const next = () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const int = (lo, hi) => lo + Math.floor(next() * (hi - lo + 1));
+  return { next, int, step: (lo, hi, s) => lo + s * int(0, Math.floor((hi - lo) / s)), pick: (arr) => arr[int(0, arr.length - 1)] };
+};
+ACAD.newSeed = () => (Math.floor(Math.random() * 2147483646) + 1) >>> 0;
+// 글자열 → seed (보기 섞기처럼 늘 같은 결과가 필요할 때)
+ACAD.hashSeed = (s) => { let h = 2166136261; for (const ch of String(s)) h = Math.imul(h ^ ch.codePointAt(0), 16777619); return h >>> 0; };
 
 // 아주 작은 이벤트 버스
 ACAD.bus = {

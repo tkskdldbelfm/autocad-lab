@@ -53,6 +53,16 @@
     });
   }
 
+  // 보기 표시 순서. 데이터의 정답 위치가 한쪽(대부분 두 번째)에 몰려 있어 눈치로 맞히지 않도록
+  // 레슨·문제마다 섞는다. 같은 문제는 늘 같은 순서(다시 열어도 그대로).
+  function optionOrder(lessonId, qi, n) {
+    const r = ACAD.rng(ACAD.hashSeed(lessonId + ":" + qi));
+    const ord = Array.from({ length: n }, (_, i) => i);
+    for (let i = n - 1; i > 0; i--) { const j = r.int(0, i); [ord[i], ord[j]] = [ord[j], ord[i]]; }
+    return ord;
+  }
+  ACAD.quizOptionOrder = optionOrder;
+
   function renderQuiz(root, lesson) {
     const box = root.querySelector(".quiz");
     if (!box || !lesson.check || !lesson.check.length) return;
@@ -60,7 +70,7 @@
     box.innerHTML = `<h3>확인 문제</h3><p class="muted small">모두 맞히면 이 레슨이 완료로 표시됩니다.</p>` +
       lesson.check.map((c, qi) => `<div class="quiz-q" data-q="${qi}">
         <p>${qi + 1}. ${esc(c.q)}</p>
-        <div class="quiz-opts">${c.o.map((o, oi) => `<button type="button" data-o="${oi}">${esc(o)}</button>`).join("")}</div>
+        <div class="quiz-opts">${optionOrder(lesson.id, qi, c.o.length).map((oi) => `<button type="button" data-o="${oi}">${esc(c.o[oi])}</button>`).join("")}</div>
         <div class="quiz-why" hidden></div>
       </div>`).join("");
     box.addEventListener("click", (e) => {
