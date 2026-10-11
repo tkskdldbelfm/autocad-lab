@@ -211,6 +211,7 @@ window.ACAD = window.ACAD || {};
       circle: (x, y, r, o) => add({ type: "circle", c: { x, y }, r }, o),
       arc: (x, y, r, d0, d1, o) => add({ type: "arc", c: { x, y }, r, a0: (d0 * Math.PI) / 180, a1: (d1 * Math.PI) / 180 }, o),
       text: (x, y, h, s, o) => add({ type: "text", p: { x, y }, h, s, rot: 0 }, { layer: "문자", ...o }),
+      erase: (fn) => doc.ents.filter(fn).forEach((e) => doc.remove(e.id)),
     };
   };
 

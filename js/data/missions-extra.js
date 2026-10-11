@@ -178,7 +178,117 @@ window.ACAD = window.ACAD || {};
         for (let i = 0; i < m.cols; i++) for (let j = 0; j < m.rows; j++) if (i || j) S.circle(m.sx + i * m.dx, m.sy + j * m.dy, m.sr);
       },
     },
+    // ---------- 보충 드릴 ----------
+    {
+      id: "d0-ortho", stage: "0", after: "m0-08", title: "반복 드릴: 직교 거리 입력 ㄷ형 채널",
+      hints: ["F8(직교)을 켜면 커서가 가로·세로로만 움직입니다. 커서로 방향을 가리키고 숫자만 치세요.", "안쪽 깊이는 높이에서 두께를 뺀 값입니다. 머릿속으로 미리 계산해 두면 손이 멈추지 않습니다."],
+      make(r) {
+        const W = r.step(100, 180, 10), H = r.step(60, 100, 10), t = r.step(10, 20, 5);
+        const pts = [P(0, 0), P(W, 0), P(W, H), P(W - t, H), P(W - t, t), P(t, t), P(t, H), P(0, H)];
+        const arrow = [`→ ${W}`, `↑ ${H}`, `← ${t}`, `↓ ${H - t}`, `← ${W - 2 * t}`, `↑ ${H - t}`, `← ${t}`];
+        return {
+          W, H, t, pts,
+          goal: `F8(직교)을 켜고 방향은 커서로, 길이는 숫자로만 입력해 가로 ${W}, 높이 ${H}, 두께 ${t}인 ㄷ형 채널을 닫습니다. 좌표(@)는 쓰지 않습니다.`,
+          view: [-30, -30, W + 30, H + 30],
+          steps: [
+            { text: `L → 아무 점 → ${arrow.slice(0, 3).join(" → ")}`, check: (c, K) => K.chain(c, [P(W, 0), P(0, H), P(-t, 0)]) },
+            { text: `→ ${arrow.slice(3).join(" → ")} → C`, check: (c, K) => !!K.hasPoly(c, pts) },
+          ],
+        };
+      },
+      solve(S, m) { S.pline(m.pts.map((q) => [q.x + 11, q.y + 7]), true); },
+    },
+    {
+      id: "d0-osnap", stage: "0", after: "m0-12", title: "반복 드릴: 객체스냅 골라 잡기",
+      hints: ["점을 물을 때 END·MID·CEN·QUA·PER를 직접 쳐서 그 스냅만 한 번 쓸 수 있습니다(스냅 재지정).", "FROM은 점을 물을 때 입력합니다: FROM → 기준점 클릭 → @x,y."],
+      make(r) {
+        const W = r.step(100, 160, 10), H = r.step(60, 100, 10), R = r.step(15, 30, 5);
+        const cx = W + R + r.step(40, 70, 10), cy = r.step(R, H - 10, 5);
+        const fx = r.step(15, 30, 5), fy = r.step(15, 30, 5);
+        return {
+          W, H, R, cx, cy, fx, fy,
+          goal: `미리 그린 ${W} × ${H} 사각형과 R${R} 원 사이에 선 세 개와 작은 원 하나를 객체스냅으로 정확히 잡아 그립니다.`,
+          view: [-30, -30, cx + R + 30, H + 30],
+          setup(S) { S.rect(0, 0, W, H); S.circle(cx, cy, R); },
+          steps: [
+            { text: "L → 사각형 왼쪽 위 끝점(END) → 원 중심(CEN)", check: (c, K) => K.hasSeg(c, P(0, H), P(cx, cy)) },
+            { text: "L → 사각형 아래 변 중간점(MID) → 원 아래 사분점(QUA)", check: (c, K) => K.hasSeg(c, P(W / 2, 0), P(cx, cy - R)) },
+            { text: "L → 원 중심(CEN) → 사각형 오른쪽 변에 직교(PER)", check: (c, K) => K.hasSeg(c, P(cx, cy), P(W, cy)) },
+            { text: `C → FROM → 사각형 오른쪽 아래 끝점 → @-${fx},${fy} → 반지름 5`, check: (c, K) => !!K.findCircle(c, P(W - fx, fy), 5) },
+          ],
+        };
+      },
+      solve(S, m) { S.line(0, m.H, m.cx, m.cy); S.line(m.W / 2, 0, m.cx, m.cy - m.R); S.line(m.cx, m.cy, m.W, m.cy); S.circle(m.W - m.fx, m.fy, 5); },
+    },
+    {
+      id: "d1-trim", stage: "1", after: "m1-18", title: "반복 드릴: 자르기로 우물 정(井) 정리",
+      hints: ["TR → Enter로 바로 자를 부분을 클릭합니다(빠른 작업 모드: 모든 객체가 절단 모서리).", "튀어나온 끝 가까이를 클릭하세요. 교차점 안쪽을 클릭하면 사각형 변이 잘립니다. 잘못 잘랐으면 U."],
+      make(r) {
+        const W = r.step(100, 160, 10), H = r.step(60, 100, 10), o = r.step(15, 30, 5);
+        const inside = (K, s, lo, hi, k) => Math.min(s.a[k], s.b[k]) >= lo - K.TOL && Math.max(s.a[k], s.b[k]) <= hi + K.TOL;
+        return {
+          W, H, o,
+          goal: `우물 정(井) 자로 겹친 선 네 개에서 튀어나온 끝 여덟 개를 자르기(TR)로 정리해 ${W} × ${H} 사각형만 남깁니다.`,
+          view: [-o - 30, -o - 30, W + o + 30, H + o + 30],
+          setup(S) { S.line(-o, 0, W + o, 0); S.line(-o, H, W + o, H); S.line(0, -o, 0, H + o); S.line(W, -o, W, H + o); },
+          steps: [
+            {
+              text: "TR → 가로선 두 개의 양쪽 끝 4곳 클릭",
+              check: (c, K) => [0, H].every((y) => K.covers(c, P(0, y), P(W, y)) && K.lineSegs(c).filter((s) => K.near(s.a.y, y) && K.near(s.b.y, y)).every((s) => inside(K, s, 0, W, "x"))),
+            },
+            {
+              text: "세로선 두 개의 위아래 끝 4곳 클릭",
+              check: (c, K) => [0, W].every((x) => K.covers(c, P(x, 0), P(x, H)) && K.lineSegs(c).filter((s) => K.near(s.a.x, x) && K.near(s.b.x, x)).every((s) => inside(K, s, 0, H, "y"))),
+            },
+          ],
+        };
+      },
+      solve(S, m) { S.erase(() => true); S.lrect(0, 0, m.W, m.H); },
+    },
+    {
+      id: "d1-mirror", stage: "1", after: "m1-21", title: "반복 드릴: 대칭 복사로 반쪽 완성",
+      hints: ["대칭선의 두 점은 중심선 위아래 끝점을 객체스냅(END)으로 잡습니다.", "마지막 질문 '원본 객체를 지우시겠습니까?'에는 Enter(아니오).", "JOIN은 끝점이 정확히 맞닿아야 이어집니다. 대칭선을 끝점 스냅으로 잡았다면 저절로 맞닿습니다."],
+      make(r) {
+        const H = r.step(60, 100, 10), w1 = r.step(30, 60, 5), h1 = r.step(15, 30, 5), w2 = r.step(15, w1 - 10, 5);
+        const half = [P(0, H), P(-w1, H), P(-w1, H - h1), P(-w2, H - h1), P(-w2, 0), P(0, 0)];
+        const mir = half.map((q) => P(-q.x, q.y));
+        const full = [...half.slice(1, 5), ...mir.slice(1, 5).reverse()];
+        return {
+          H, w1, h1, w2, half, mir, full,
+          goal: `중심선 왼쪽에 그려 둔 반쪽 윤곽(최대 폭 ${w1}, 높이 ${H})을 대칭(MI)으로 복사해 좌우 대칭 윤곽 하나를 완성합니다.`,
+          view: [-w1 - 30, -30, w1 + 30, H + 30],
+          setup(S) { S.pline(half.map((q) => [q.x, q.y])); S.line(0, -10, 0, H + 10, { layer: "중심선" }); },
+          steps: [
+            { text: "MI → 반쪽 윤곽 선택 → 중심선의 두 끝점 → Enter(원본 유지)", check: (c, K) => mir.slice(1).every((q, i) => K.covers(c, mir[i], q)) },
+            { text: "J → 원본과 사본 선택 → 닫힌 폴리선 하나로 결합", check: (c, K) => !!K.hasPoly(c, full, { translate: false }) },
+          ],
+        };
+      },
+      solve(S, m) { S.erase((e) => e.type === "pline"); S.pline(m.full.map((q) => [q.x, q.y]), true); },
+    },
+    {
+      id: "d1-rotate", stage: "1", after: "m1-26", title: "반복 드릴: 회전 각도와 참조",
+      hints: ["ROTATE의 각도는 시계 반대 방향이 +입니다. 시계 방향으로 돌리려면 음수.", "참조(R): 지금 각도를 먼저 입력하고 새 각도를 입력합니다. 기운 각도를 몰라도 객체스냅으로 두 점을 찍어 잴 수 있습니다."],
+      make(r) {
+        const W = r.step(60, 100, 10), H = r.step(20, 40, 5), th = r.pick([15, 30, 45, 60, -30, -45, 120]);
+        const X = W + 90, L = r.step(60, 100, 10), al = r.pick([17, 23, 37, 52, 68]);
+        const rect = [P(0, 0), P(W, 0), P(W, H), P(0, H)].map((q) => G.polar(P(0, 0), G.ang(P(0, 0), q) + (th * Math.PI) / 180, G.dist(P(0, 0), q)));
+        const tip = G.add(P(X, 0), pol(L, al));
+        return {
+          W, H, th, X, L, al, rect, tip,
+          goal: `왼쪽 ${W} × ${H} 판을 왼쪽 아래 모서리 기준으로 ${th}° 돌리고, 오른쪽에 ${al}° 기운 선은 참조(R)로 수평이 되게 돌립니다.`,
+          view: [-W - 20, -W - 20, X + L + 30, W + 30],
+          setup(S) { S.rect(0, 0, W, H); S.line(X, 0, tip.x, tip.y); },
+          steps: [
+            { text: `RO → 판 선택 → 기준점: 왼쪽 아래 모서리 → ${th}`, check: (c, K) => !!K.hasPoly(c, rect, { translate: false }) },
+            { text: `RO → 기운 선 선택 → 기준점: 왼쪽 끝점 → R → ${al} → 0`, check: (c, K) => K.hasSeg(c, P(X, 0), P(X + L, 0)) },
+          ],
+        };
+      },
+      solve(S, m) { S.pline(m.rect.map((q) => [q.x, q.y]), true); S.line(m.X, 0, m.X + m.L, 0); },
+    },
   ];
+  ACAD.DRILL_GOAL = 5;
 
   // ======================================================================
   // 3D 따라그리기: 3면도(제3각법). 오른쪽 위 3D는 3면도·3D 뷰어의 같은 모델이다.
@@ -260,7 +370,7 @@ window.ACAD = window.ACAD || {};
       hints: ["평면도 가운데 세로선(x = 50)은 단 벽면입니다. 수직인 면은 위에서 보면 선 하나가 됩니다.", "우측면도의 가로선(높이 25)은 낮은 단의 모서리입니다. 앞에 있어 실선입니다."],
     }),
     view3d({
-      id: "m1-v2", stage: "1", after: "m1-v1", model: "block-slot", title: "3D 따라그리기 3: 홈 블록(숨은선)", size: [90, 60, 40], desc: "홈 블록 90 × 60 × 40, 홈 폭 30 · 깊이 20",
+      id: "m1-v2", stage: "1", after: "m1-v1", model: "block-slot", title: "3D 따라그리기 5: 홈 블록(숨은선)", size: [90, 60, 40], desc: "홈 블록 90 × 60 × 40, 홈 폭 30 · 깊이 20",
       views: {
         front: { vis: loop([[0, 0], [90, 0], [90, 40], [60, 40], [60, 20], [30, 20], [30, 40], [0, 40]]) },
         top: { vis: [...rectL(90, 60), [30, 0, 30, 60], [60, 0, 60, 60]] },
@@ -269,7 +379,7 @@ window.ACAD = window.ACAD || {};
       hints: ["우측면도에서 홈 바닥(높이 20)은 오른쪽 벽에 가려 숨은선입니다. LA로 '숨은선'을 현재 층으로 바꾸고 그리세요."],
     }),
     view3d({
-      id: "m1-v3", stage: "1", after: "m1-v2", model: "block-hole", title: "3D 따라그리기 4: 구멍 뚫린 판", size: [100, 60, 20], desc: "판 100 × 60 × 20, 가운데 Ø24 관통 구멍",
+      id: "m1-v3", stage: "1", after: "m1-v2", model: "block-hole", title: "3D 따라그리기 6: 구멍 뚫린 판", size: [100, 60, 20], desc: "판 100 × 60 × 20, 가운데 Ø24 관통 구멍",
       views: {
         front: { vis: rectL(100, 20), hid: [[38, 0, 38, 20], [62, 0, 62, 20]] },
         top: { vis: rectL(100, 60), circ: [[50, 30, 12]] },
@@ -278,13 +388,60 @@ window.ACAD = window.ACAD || {};
       hints: ["구멍은 평면도에서만 원으로 보입니다. 정면도·우측면도에서는 구멍 벽 두 줄이 숨은선입니다(중심 ± 반지름 12).", "실제 도면에서는 구멍마다 중심선(십자)도 넣습니다. 이 미션은 판정하지 않지만 '중심선' 층에 그려 보세요."],
     }),
     view3d({
-      id: "m1-v4", stage: "1", after: "m1-v3", model: "wedge-block", title: "3D 따라그리기 5: 경사면 블록", size: [80, 50, 50], desc: "경사면 블록 80 × 50 × 50, 경사면은 높이 20 → 50",
+      id: "m1-v4", stage: "1", after: "m1-v3", model: "wedge-block", title: "3D 따라그리기 7: 경사면 블록", size: [80, 50, 50], desc: "경사면 블록 80 × 50 × 50, 경사면은 높이 20 → 50",
       views: {
         front: { vis: loop([[0, 0], [80, 0], [80, 20], [40, 50], [0, 50]]) },
         top: { vis: [...rectL(80, 50), [40, 0, 40, 50]] },
         right: { vis: [...rectL(50, 50), [0, 20, 50, 20]] },
       },
       hints: ["경사면은 정면도에서만 비스듬한 선입니다. 평면도·우측면도에서는 사각형(띠)으로 보입니다.", "비스듬한 선은 끝점 좌표로 그리세요: 정면도 원점에서 @40,30 방향."],
+    }),
+    // ---------- 보충: 입문 ----------
+    view3d({
+      id: "m0-v3", stage: "0", after: "m0-v2", model: "block-notch", title: "3D 따라그리기 3: 모서리 따낸 블록", size: [80, 50, 40], desc: "블록 80 × 50 × 40, 앞쪽 오른쪽 위를 30 × 25 × 20 따냄",
+      views: {
+        front: { vis: [...rectL(80, 40), [50, 20, 80, 20], [50, 20, 50, 40]] },
+        top: { vis: [...rectL(80, 50), [50, 0, 50, 25], [50, 25, 80, 25]] },
+        right: { vis: [...rectL(50, 40), [0, 20, 25, 20], [25, 20, 25, 40]] },
+      },
+      hints: ["상자법: 세 투상도 모두 바깥 사각형을 먼저 그리고, 따낸 자리를 ㄱ자 선으로 더합니다. 따낸 자리 뒤에도 재료가 있어 바깥 윤곽은 그대로 사각형입니다.", "우측면도의 왼쪽이 앞입니다. 따낸 자리가 앞쪽이니 우측면도에서는 왼쪽 위에 ㄱ자가 생깁니다."],
+    }),
+    view3d({
+      id: "m0-v4", stage: "0", after: "m0-v3", model: "block-tee", title: "3D 따라그리기 4: T자 블록", size: [90, 50, 50], desc: "T자 블록 90 × 50 × 50, 바닥판 높이 20, 기둥 폭 30",
+      views: {
+        front: { vis: loop([[0, 0], [90, 0], [90, 20], [60, 20], [60, 50], [30, 50], [30, 20], [0, 20]]) },
+        top: { vis: [...rectL(90, 50), [30, 0, 30, 50], [60, 0, 60, 50]] },
+        right: { vis: [...rectL(50, 50), [0, 20, 50, 20]] },
+      },
+      hints: ["정면도는 대칭입니다. 오른쪽 절반을 그리고 MIRROR로 복사하면 빠릅니다(신입 단계 강의 21).", "평면도의 세로선 두 줄은 정면도 기둥의 양옆 선을 위로 그대로 올린 것입니다."],
+    }),
+    // ---------- 보충: 신입 ----------
+    view3d({
+      id: "m1-v5", stage: "1", after: "m1-v4", model: "plate-boss", title: "3D 따라그리기 8: 보스 달린 판", size: [90, 60, 40], desc: "판 90 × 60 × 15 위에 Ø30 × 25 원기둥",
+      views: {
+        front: { vis: [...rectL(90, 15), [30, 15, 30, 40], [30, 40, 60, 40], [60, 40, 60, 15]] },
+        top: { vis: rectL(90, 60), circ: [[45, 30, 15]] },
+        right: { vis: [...rectL(60, 15), [15, 15, 15, 40], [15, 40, 45, 40], [45, 40, 45, 15]] },
+      },
+      hints: ["원기둥은 축 방향(평면도)에서만 원입니다. 정면도·우측면도에서는 폭 30(지름)의 사각형입니다.", "평면도의 원 중심은 M2P(사각형 대각 두 끝점의 중간)로 잡으면 계산이 필요 없습니다.", "실제 도면에서는 원기둥에도 중심선을 넣습니다. 이 미션은 판정하지 않지만 '중심선' 층에 그려 보세요."],
+    }),
+    view3d({
+      id: "m1-v6", stage: "1", after: "m1-v5", model: "step-hole", title: "3D 따라그리기 9: 구멍 뚫린 계단 블록", size: [100, 60, 50], desc: "계단 블록 100 × 60 × 50, 낮은 단에 Ø20 관통 구멍",
+      views: {
+        front: { vis: loop([[0, 0], [100, 0], [100, 25], [50, 25], [50, 50], [0, 50]]), hid: [[65, 0, 65, 25], [85, 0, 85, 25]] },
+        top: { vis: [...rectL(100, 60), [50, 0, 50, 60]], circ: [[75, 30, 10]] },
+        right: { vis: [...rectL(60, 50), [0, 25, 60, 25]], hid: [[20, 0, 20, 25], [40, 0, 40, 25]] },
+      },
+      hints: ["파선은 낮은 단 두께(높이 0~25)까지만 그립니다. 구멍이 높은 단까지 가지 않기 때문입니다.", "평면도 원의 왼쪽·오른쪽 끝(x = 65, 85)을 아래로 내리면 정면도 파선, 앞·뒤 끝(y = 20, 40)을 옮기면 우측면도 파선입니다."],
+    }),
+    view3d({
+      id: "m1-v7", stage: "1", after: "m1-v6", model: "block-vgroove", title: "3D 따라그리기 10: V홈 블록", size: [80, 50, 40], desc: "블록 80 × 50 × 40, 윗면에 폭 30 · 깊이 15 V홈",
+      views: {
+        front: { vis: loop([[0, 0], [80, 0], [80, 40], [55, 40], [40, 25], [25, 40], [0, 40]]) },
+        top: { vis: [...rectL(80, 50), [25, 0, 25, 50], [40, 0, 40, 50], [55, 0, 55, 50]] },
+        right: { vis: rectL(50, 40), hid: [[0, 25, 50, 25]] },
+      },
+      hints: ["V홈의 비스듬한 선은 상대극좌표로: 홈 가장자리에서 @21.21<-45 처럼 그리거나, 골 끝점을 좌표로 잡으세요.", "평면도에는 홈 가장자리 두 줄과 골 한 줄, 모두 세 줄이 생깁니다. 위에서는 가리는 것이 없어 모두 실선입니다.", "우측면도에서 오른쪽 벽이 홈을 다 가립니다. 골만 파선 한 줄로 남습니다."],
     }),
   ];
 

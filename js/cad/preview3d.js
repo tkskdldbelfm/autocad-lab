@@ -97,10 +97,11 @@ window.ACAD = window.ACAD || {};
       try { this.renderer.forceContextLoss(); } catch (e) { /* 무시 */ }
       c.remove();
     }
-    addMesh(geo, color = 0xd5d5cb) {
+    // edgeGeo: 모서리 선을 따로 줄 때(CSG 모델은 삼각형 이음매가 EdgesGeometry에 선으로 잡힌다)
+    addMesh(geo, color = 0xd5d5cb, edgeGeo) {
       const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness: 0.75, metalness: 0.05, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }));
       this.root.add(m);
-      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 25), new THREE.LineBasicMaterial({ color: 0x000000 }));
+      const edges = new THREE.LineSegments(edgeGeo || new THREE.EdgesGeometry(geo, 25), new THREE.LineBasicMaterial({ color: 0x000000 }));
       m.add(edges);
       return m;
     }
@@ -237,12 +238,15 @@ window.ACAD = window.ACAD || {};
   // 3면도 뷰어 모델(ACAD.models)을 그대로 띄운다. 모델 좌표: X 오른쪽, Y 뒤, Z 위
   function viewerModel(view, model) {
     const prep = ACAD.HLR.prepare(model);
-    for (const g of prep.geoms) {
-      if (!g.attributes.position.count) continue;
+    // 모서리는 뷰어와 같은 HLR 모서리(prep.edgeGeo)를 쓴다
+    prep.geoms.forEach((g, i) => {
+      if (!g.attributes.position.count) return;
       const c = g.clone();
       c.rotateX(-Math.PI / 2); // (x, y, z) → THREE (x, z, -y)
-      view.addMesh(c, 0xd5d5cb);
-    }
+      const e = prep.edgeGeo[i] ? prep.edgeGeo[i].clone() : null;
+      if (e) e.rotateX(-Math.PI / 2);
+      view.addMesh(c, 0xd5d5cb, e);
+    });
     const { min, max } = prep.bb;
     const len = Math.max(max[0] - min[0], max[2] - min[2]) * 0.4;
     const from = new THREE.Vector3((min[0] + max[0]) / 2, (min[2] + max[2]) / 2, -min[1] + len * 1.4);

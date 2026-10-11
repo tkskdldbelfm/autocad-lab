@@ -103,7 +103,7 @@ window.ACAD = window.ACAD || {};
           ${Object.entries(groups).map(([st, list]) => `
             <details class="ms-group" ${st === "0" || st === "1" ? "open" : ""}>
               <summary><b>${STAGE_KO[st]}</b> <span class="muted small">${list.filter((m) => ACAD.progress.has("mission:" + m.id)).length}/${list.length}</span></summary>
-              <ol class="ms-list">${list.map((m) => `<li><a href="${ACAD.link.sandbox(m.id)}" class="${ACAD.progress.has("mission:" + m.id) ? "done" : ""}"><span class="mono tiny">${m.lecture ? "강의 " + m.lecture : m.make ? "드릴" : m.reference ? "3D" : m.id}</span> ${ACAD.esc(m.title)}</a></li>`).join("")}</ol>
+              <ol class="ms-list">${list.map((m) => `<li><a href="${ACAD.link.sandbox(m.id)}" class="${ACAD.progress.has("mission:" + m.id) ? "done" : ""}"><span class="mono tiny">${m.lecture ? "강의 " + m.lecture : m.make ? `드릴 ${Math.min(+ACAD.store.get("drill:" + m.id, 0) || 0, ACAD.DRILL_GOAL)}/${ACAD.DRILL_GOAL}` : m.reference ? "3D" : m.id}</span> ${ACAD.esc(m.title)}</a></li>`).join("")}</ol>
             </details>`).join("")}`;
         return;
       }
@@ -115,13 +115,13 @@ window.ACAD = window.ACAD || {};
           <div class="crumbs"><a href="${ACAD.link.sandbox()}">CAD 연습장</a> · <span class="tag">${STAGE_KO[mission.stage]}</span></div>
           <h2>${ACAD.esc(mission.title)}</h2>
           <p class="small">${ACAD.esc(mission.goal)}</p>
-          ${mission.make ? `<p class="small"><button type="button" class="btn small" data-act="newdrill">새 문제</button> <span class="muted">완료 ${drillCount()}회 · 숫자가 매번 바뀝니다</span></p>` : ""}
+          ${mission.make ? `<p class="small"><button type="button" class="btn small" data-act="newdrill">새 문제</button> <span class="muted">완료 ${drillCount()}회 · 숙달 목표 ${ACAD.DRILL_GOAL}회${drillCount() >= ACAD.DRILL_GOAL ? " 달성" : ""} · 숫자가 매번 바뀝니다</span></p>` : ""}
           ${lec ? `<a class="lec-link" href="${lec.url}" target="_blank" rel="noopener"><img src="${lec.thumb}" alt="" loading="lazy" width="96" height="54"><span><b>CAD 기초강의 ${lec.no}</b><br><span class="small">${ACAD.esc(lec.title)} ↗</span></span></a>` : ""}
         </div>
         ${mission.reference ? `<div class="ms-ref"><div class="ms-ref-view"></div><p class="tiny muted">끌어서 돌려 보세요. 빨간 화살표 = 정면(정면도를 보는 방향)</p></div>` : ""}
         <ol class="ms-steps">${mission.steps.map((s, k) => `<li data-k="${k}" class="${stepDone.has(k) ? "ok" : ""}"><i aria-hidden="true"></i><span>${ACAD.esc(s.text)}</span></li>`).join("")}</ol>
         <div class="ms-pass" ${passed && stepDone.size === mission.steps.length ? "" : "hidden"}>
-          <b>미션 완료</b><p class="small">${mission.make ? `반복 드릴 ${drillCount()}회 완료. 숫자가 바뀐 새 문제로 손에 익을 때까지 반복하세요.` : "잘했습니다. 오른쪽 '지금 그린 것'에서 결과를 다시 확인해 보세요."}</p>
+          <b>미션 완료</b><p class="small">${mission.make ? `반복 드릴 ${drillCount()}회 완료. ${drillCount() >= ACAD.DRILL_GOAL ? "숙달 목표를 채웠습니다. 이제 힌트 없이, 더 빨리 풀어 보세요." : `숙달 목표 ${ACAD.DRILL_GOAL}회까지 ${ACAD.DRILL_GOAL - drillCount()}회 남았습니다. 숫자가 바뀐 새 문제로 이어서 푸세요.`}` : "잘했습니다. 오른쪽 '지금 그린 것'에서 결과를 다시 확인해 보세요."}</p>
           ${mission.make ? `<button type="button" class="btn primary small" data-act="newdrill">새 문제</button>` : ""}
           ${next ? `<a class="btn accent small" href="${ACAD.link.sandbox(next.id)}">다음 미션: ${ACAD.esc(next.title)}</a>` : `<a class="btn small" href="${ACAD.link.sandbox()}">미션 목록</a>`}
         </div>

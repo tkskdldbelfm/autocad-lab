@@ -149,7 +149,7 @@ for (const m of A.missions) {
 // 학습자가 안내대로 했을 때 판정이 통과하는지 본다. 입력 형식: [요청 종류, 응답]
 section("실제 명령으로 드릴 풀기");
 function runCommand(doc, name, script) {
-  const eng = {};
+  const eng = { flat: () => doc.flat().filter((e) => doc.visible(e)), flatSelectable: () => doc.flat().filter((e) => doc.visible(e)) };
   const api = {
     eng, doc,
     point: (prompt, o = {}) => ({ type: "point", prompt, ...o }),
@@ -195,6 +195,24 @@ const SCENARIOS = {
     runCommand(doc, "ARRAYPOLAR", [["select", { ids: [hole] }], ["point", { pt: { x: 0, y: 0 } }], ["kw", { kw: "I" }], ["number", { value: m.N }], ["kw", { kw: "X" }]]);
     const s = firstId(doc, (e) => e.type === "circle" && e.r === m.sr);
     runCommand(doc, "ARRAYRECT", [["select", { ids: [s] }], ["kw", { kw: "COU" }], ["number", { value: m.cols }], ["number", { value: m.rows }], ["kw", { kw: "S" }], ["number", { value: m.dx }], ["number", { value: m.dy }], ["kw", { kw: "X" }]]);
+  },
+  "d1-trim": (m, doc) => {
+    const ends = [[-m.o / 2, 0], [m.W + m.o / 2, 0], [-m.o / 2, m.H], [m.W + m.o / 2, m.H], [0, -m.o / 2], [0, m.H + m.o / 2], [m.W, -m.o / 2], [m.W, m.H + m.o / 2]];
+    for (const [x, y] of ends) {
+      const id = firstId(doc, (e) => e.type === "line" && A.G.segClosest({ k: "L", a: e.a, b: e.b }, { x, y }).d < 1e-6);
+      runCommand(doc, "TRIM", [["pick", { id, pt: { x, y } }]]);
+    }
+  },
+  "d1-mirror": (m, doc) => {
+    const half = firstId(doc, (e) => e.type === "pline");
+    runCommand(doc, "MIRROR", [["select", { ids: [half] }], ["point", { pt: { x: 0, y: -10 } }], ["point", { pt: { x: 0, y: m.H + 10 } }], ["kw", { kw: "N" }]]);
+    runCommand(doc, "JOIN", [["select", { ids: doc.ents.filter((e) => e.type === "pline").map((e) => e.id) }]]);
+  },
+  "d1-rotate": (m, doc) => {
+    const rect = firstId(doc, (e) => e.type === "pline");
+    runCommand(doc, "ROTATE", [["select", { ids: [rect] }], ["point", { pt: { x: 0, y: 0 } }], ["number", { value: m.th }]]);
+    const ln = firstId(doc, (e) => e.type === "line");
+    runCommand(doc, "ROTATE", [["select", { ids: [ln] }], ["point", { pt: { x: m.X, y: 0 } }], ["number", { kw: "R" }], ["number", { value: m.al }], ["number", { value: 0 }]]);
   },
 };
 for (const [id, play] of Object.entries(SCENARIOS)) {
