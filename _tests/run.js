@@ -70,6 +70,39 @@ for (const l of lessons) for (const p of l.practice || []) {
   if (bad) fail(`${l.id}: 없는 실습 ${p.type}:${p.id}`); else ok();
 }
 
+// ---------- 3-1. 생성형 퀴즈 ----------
+// 풀 때마다 새로 만드는 세트: 문제 수, 보기 4개가 서로 다른지, 틀린 아이소 보기가 주어진 평면·입면과 정말 다른지, 높이 정답이 맞는지
+section("생성형 퀴즈 (seed 200개)");
+{
+  const sig = (route, kind) => {
+    const pr = A.routeProj[kind], out = [];
+    for (const p of A.routePts(route).map(pr)) { const q = out[out.length - 1]; if (!q || Math.abs(q[0] - p[0]) > 1e-6 || Math.abs(q[1] - p[1]) > 1e-6) out.push(p); }
+    return JSON.stringify(out);
+  };
+  for (const set of A.viewQuizSets.filter((s) => s.gen)) {
+    let bad = 0;
+    for (let seed = 1; seed <= 200 && bad < 5; seed++) {
+      const qs = set.gen(seed);
+      const err = (m) => { bad++; fail(`${set.id}#${seed}: ${m}`); };
+      if (qs.length !== set.count) { err(`문제 ${qs.length}개 (count ${set.count})`); continue; }
+      qs.forEach((q, i) => {
+        const keys = q.options.map((o) => JSON.stringify(o));
+        if (q.options.length !== 4 || new Set(keys).size !== 4) return err(`${i + 1}번 보기 수·중복`);
+        if (q.type === "iso") {
+          if (keys[0] !== JSON.stringify(q.route)) return err(`${i + 1}번 정답이 경로와 다름`);
+          if (!q.options.every((rt) => A.routeValid(rt))) return err(`${i + 1}번 보기에 잘못된 경로`);
+          const p0 = sig(q.route, "plan"), e0 = sig(q.route, "elev");
+          if (q.options.slice(1).some((rt) => sig(rt, "plan") === p0 && sig(rt, "elev") === e0)) return err(`${i + 1}번 틀린 보기가 평면·입면과 모두 같음`);
+        } else if (q.type === "isoel") {
+          const z = A.routePts(q.route).map((p) => p[2]);
+          if (q.options[0] !== `EL+${q.el0 + z[z.length - 1]}`) return err(`${i + 1}번 높이 정답 ${q.options[0]}`);
+        } else return err(`${i + 1}번 알 수 없는 형식 ${q.type}`);
+        ok();
+      });
+    }
+  }
+}
+
 // ---------- 4. 미션 판정 ----------
 section("미션 판정 (빈 도면은 통과하면 안 되고, 모범 답안은 모두 통과해야 한다)");
 const K = A.CadCheck;
@@ -149,7 +182,7 @@ for (const m of A.missions) {
 // 학습자가 안내대로 했을 때 판정이 통과하는지 본다. 입력 형식: [요청 종류, 응답]
 section("실제 명령으로 드릴 풀기");
 function runCommand(doc, name, script) {
-  const eng = { flat: () => doc.flat().filter((e) => doc.visible(e)), flatSelectable: () => doc.flat().filter((e) => doc.visible(e)) };
+  const eng = { doc, flat: () => doc.flat().filter((e) => doc.visible(e)), flatSelectable: () => doc.flat().filter((e) => doc.visible(e)) };
   const api = {
     eng, doc,
     point: (prompt, o = {}) => ({ type: "point", prompt, ...o }),
@@ -171,6 +204,23 @@ function runCommand(doc, name, script) {
   while (!req.done) req = g.next({ enter: true });
 }
 const firstId = (doc, fn) => doc.ents.find(fn).id;
+// 아이소 드릴: 구간표(방향·길이)만 보고 PL·C·DT로 옮긴다
+function isoScenario(m, doc, kind) {
+  doc.cur = "배관"; doc.textH = 150; doc.textHSet = true;
+  const V = kind === "plan" ? { E: [1, 0], W: [-1, 0], N: [0, 1], S: [0, -1] } : { E: [1, 0], W: [-1, 0], U: [0, 1], D: [0, -1] };
+  let p = { x: 0, y: kind === "plan" ? 0 : m.el0 }, z = m.el0, top = m.el0;
+  const pl = [["point", { pt: p }]], dots = [];
+  for (const [d, L] of m.route) {
+    if (d === "U") z += L; else if (d === "D") z -= L;
+    top = Math.max(top, z);
+    if (!V[d]) { dots.push(p); continue; }
+    p = { x: p.x + V[d][0] * L, y: p.y + V[d][1] * L };
+    pl.push(["point", { pt: p }]);
+  }
+  runCommand(doc, "PLINE", pl);
+  for (const q of dots) runCommand(doc, "CIRCLE", [["point", { pt: q }], ["point", { value: 50 }]]);
+  runCommand(doc, "TEXT", [["point", { pt: { x: 0, y: -300 } }], ["number", {}], ["number", {}], ["text", { text: `EL+${kind === "plan" ? z : top}` }], ["text", { text: "" }]]);
+}
 const SCENARIOS = {
   "d0-circle": (m, doc) => {
     runCommand(doc, "CIRCLE", [["point", { pt: m.c1 }], ["point", { value: m.r1 }]]);
@@ -213,6 +263,20 @@ const SCENARIOS = {
     runCommand(doc, "ROTATE", [["select", { ids: [rect] }], ["point", { pt: { x: 0, y: 0 } }], ["number", { value: m.th }]]);
     const ln = firstId(doc, (e) => e.type === "line");
     runCommand(doc, "ROTATE", [["select", { ids: [ln] }], ["point", { pt: { x: m.X, y: 0 } }], ["number", { kw: "R" }], ["number", { value: m.al }], ["number", { value: 0 }]]);
+  },
+  // 3년차: 학습자처럼 상대좌표를 직접 계산해 넣는다(정답 좌표를 그대로 쓰지 않음).
+  "d2-plan": (m, doc) => isoScenario(m, doc, "plan"),
+  "d2-elev": (m, doc) => isoScenario(m, doc, "elev"),
+  "d2-dbl": (m, doc) => {
+    doc.cur = "중심선"; doc.textH = 60; doc.textHSet = true;
+    runCommand(doc, "LINE", [["point", { pt: { x: 0, y: m.el } }], ["point", { pt: { x: m.L, y: m.el } }]]);
+    const cl = firstId(doc, (e) => e.type === "line" && e.layer === "중심선");
+    doc.cur = "배관";
+    const R = { "2\"": 60.3, "3\"": 88.9, "4\"": 114.3, "6\"": 168.3, "8\"": 219.1 }[m.nps] / 2;
+    runCommand(doc, "OFFSET", [["number", { kw: "L" }], ["kw", { kw: "C" }], ["number", { value: R }], ["pick", { id: cl, pt: { x: 10, y: m.el } }], ["point", { pt: { x: 10, y: m.el + 500 } }], ["pick", { id: cl, pt: { x: 10, y: m.el } }], ["point", { pt: { x: 10, y: m.el - 500 } }], ["pick", {}]]);
+    const fx = (v) => (Math.round(v * 10) / 10).toFixed(1);
+    runCommand(doc, "TEXT", [["point", { pt: { x: 100, y: m.el + R + 50 } }], ["number", {}], ["number", {}], ["text", { text: `TOP EL+${fx(m.el + R)}` }], ["text", { text: "" }]]);
+    runCommand(doc, "TEXT", [["point", { pt: { x: 100, y: m.el - R - 120 } }], ["number", {}], ["number", {}], ["text", { text: `BOP EL+${fx(m.el - R)}` }], ["text", { text: "" }]]);
   },
 };
 for (const [id, play] of Object.entries(SCENARIOS)) {

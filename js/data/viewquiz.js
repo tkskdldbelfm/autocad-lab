@@ -162,6 +162,106 @@ window.ACAD = window.ACAD || {};
           why: "P&ID는 축척이 없는 연결도다. 높이와 위치는 평면도·입면도·아이소에서 읽는다." },
       ],
     },
+    {
+      id: "isodrill", stage: "2", title: "보충: 단선 ↔ 아이소 반복",
+      desc: "풀 때마다 새 배관 경로가 나온다. 평면·입면을 아이소로 합치고, 아이소 치수로 높이를 계산한다.",
+      count: 8,
+      gen: (seed) => isoSet(seed),
+      tip: `<p>1. 평면도에서 동서남북 순서를, 입면도에서 위·아래를 읽어 방향 순서를 적는다(예: 동 → 위 → 북).</p><p>2. 아이소에서 북쪽은 오른쪽 위, 동쪽은 오른쪽 아래, 위는 위다. 검은 점이 시작점이다.</p><p>3. 높이: 올라간 구간은 더하고 내려간 구간은 뺀다. 수평 구간의 길이는 높이와 상관없다.</p>`,
+    },
+    {
+      id: "pipecalc", stage: "2", title: "보충: 배관 숫자 계산",
+      desc: "외경, TOP·BOP, 서포트 높이, 엘보 치수, 기울기, 간격처럼 도면을 읽다가 바로 해야 하는 계산.",
+      tip: `<p>외경표: 2" 60.3 · 3" 88.9 · 4" 114.3 · 6" 168.3 · 8" 219.1</p><p>TOP = CL + 외경/2, BOP = CL − 외경/2</p><p>LR 엘보 중심~끝 = 1.5 × 호칭(인치) × 25.4, SR = 1.0 × 호칭 × 25.4</p><p>기울기 1/100 = 길이 100마다 1 낮아짐</p>`,
+      questions: [
+        { type: "text", prompt: '6" 배관의 바깥지름(OD)은?',
+          options: ["168.3", "152.4", "150.0", "165.1"],
+          why: "외경은 호칭마다 표로 정해져 있다. 6\" = DN150 = OD 168.3mm. 152.4는 6 × 25.4로 호칭을 그대로 계산한 값이라 틀린다." },
+        { type: "text", prompt: '6" 관의 CL이 EL+3500이다. 관 윗면(TOP)은?',
+          options: ["EL+3584.2", "EL+3415.9", "EL+3576.2", "EL+3668.3"],
+          why: "TOP = CL + 외경/2 = 3500 + 168.3/2 = 3584.15. 3415.9는 BOP, 3576.2는 호칭 6\"(152.4)의 절반을 더한 값이다." },
+        { type: "text", prompt: '파이프 랙 빔 윗면(TOS)이 EL+6000, 서포트 슈 높이가 100이다. 슈 위에 놓인 4" 관의 CL은?',
+          options: ["EL+6157.2", "EL+6100.0", "EL+6057.2", "EL+6214.3"],
+          why: "관 밑면 BOP = TOS + 슈 = 6100. CL = BOP + 외경/2 = 6100 + 57.15 = 6157.15. 6100은 BOP이고, 6057.2는 슈를 빼먹은 값이다." },
+        { type: "text", prompt: '4" 롱 래디어스(LR) 90° 엘보의 중심에서 끝면까지 거리는?',
+          options: ["152.4", "101.6", "114.3", "228.6"],
+          why: "ASME B16.9 LR 엘보는 1.5 × 호칭: 1.5 × 4\" = 6\" = 152.4mm. 101.6은 숏 래디어스(SR, 1.0 × 호칭)다." },
+        { type: "text", prompt: '6" 숏 래디어스(SR) 90° 엘보의 중심에서 끝면까지 거리는?',
+          options: ["152.4", "228.6", "168.3", "76.2"],
+          why: "SR 엘보는 1.0 × 호칭: 6\" = 152.4mm. 228.6은 LR(1.5 × 6\")이다. 외경 168.3과 헷갈리지 않는다." },
+        { type: "text", prompt: "드레인 쪽으로 1/100 기울기를 준 수평 길이 6000의 배관. 양 끝의 높이 차는?",
+          options: ["60", "6", "600", "100"],
+          why: "1/100은 100 갈 때 1 낮아진다는 뜻이다. 6000 × 1/100 = 60mm." },
+        { type: "text", prompt: "아이소 치수가 동 1500 → 북 800 → 동 1200 → 남 300이다. 끝점은 시작점에서 평면으로 어디인가?",
+          options: ["동 2700, 북 500", "동 2700, 북 1100", "동 1500, 북 500", "동 2700, 남 500"],
+          why: "같은 축끼리 더한다. 동서: 1500 + 1200 = 동 2700. 남북: 800 − 300 = 북 500." },
+        { type: "text", prompt: "시작 EL+1200에서 위 900 → 동 1500 → 아래 400 → 북 600으로 간다. 끝점의 EL은?",
+          options: ["EL+1700", "EL+2500", "EL+700", "EL+3200"],
+          why: "수평 구간은 높이를 바꾸지 않는다. 1200 + 900 − 400 = 1700. 2500은 아래 400도 더한 값이다." },
+        { type: "text", prompt: "4\"와 6\" 관의 CL 간격이 300이다(보온 없음). 두 관 바깥면 사이의 빈 간격은?",
+          options: ["158.7", "300.0", "141.3", "185.7"],
+          why: "빈 간격 = CL 간격 − 두 관의 반지름 = 300 − 57.15 − 84.15 = 158.7mm. 평면도에서 배관이 단선이면 이 계산으로 실제 간격을 확인한다." },
+        { type: "text", prompt: "펌프 흡입측 수평 배관의 편심 리듀서는 보통 어떻게 둡니까?",
+          options: ["평평한 면을 위로(FOT): 공기가 고이지 않게", "평평한 면을 아래로(FOB): 관 밑면 높이를 맞추려고", "동심 리듀서만 쓴다", "방향은 상관없다"],
+          why: "흡입측에 공기 주머니가 생기면 펌프에 문제가 생긴다. 그래서 윗면을 평평하게(FOT) 둔다. 파이프 랙 위에서는 관 밑면(BOP)을 맞추려고 FOB를 흔히 쓴다." },
+      ],
+    },
   ];
+
+  // ---------- 3년차 보충: 풀 때마다 새로 만드는 아이소 문제 (보기 0번이 정답, 화면에서 섞는다) ----------
+  function isoSet(seed) {
+    const r = ACAD.rng(seed * 7919 + 17), KO = ACAD.PIPE_KO, qs = [];
+    const seq = (rt) => rt.map(([d]) => KO[d]).join(" → ");
+    for (let k = 0; k < 6; k++) {
+      const route = ACAD.pipeRoute(r, { legs: k < 2 ? 3 : r.pick([4, 5]) });
+      qs.push({
+        type: "iso", prompt: "단선 평면도와 입면도(남쪽에서 북쪽을 보며)를 보고 맞는 아이소를 고르시오.",
+        route, options: [route, ...isoWrong(route, r)],
+        why: `방향 순서는 ${seq(route)}. 평면도에서 동서남북을, 입면도에서 위·아래를 읽어 합친다. 아이소에서 북쪽은 오른쪽 위, 동쪽은 오른쪽 아래다.`,
+      });
+    }
+    for (let k = 0; k < 2; k++) {
+      const el0 = r.step(800, 2500, 100);
+      const zs = (rt) => ACAD.routePts(rt).map((p) => p[2]);
+      const route = ACAD.pipeRoute(r, { legs: r.pick([4, 5]), ok: (rt) => { const z = zs(rt); return z[z.length - 1] !== 0 && Math.min(...z) + el0 >= 300; } });
+      const vs = route.filter(([d]) => "UD".includes(d)).map(([d, L]) => (d === "U" ? L : -L));
+      const net = vs.reduce((a, b) => a + b, 0), abs = vs.reduce((a, b) => a + Math.abs(b), 0);
+      const ans = el0 + net, lastH = route[route.length - 1][1];
+      // 흔한 실수: 부호 반대, 모두 더하기, 높이를 안 바꾸기, 수평 길이를 섞기
+      const wrong = [...new Set([el0 - net, el0 + abs, el0 - abs, el0 + net - 2 * vs[0], el0, ans + lastH, ans - lastH, ans + route[0][1]])].filter((v) => v !== ans && v >= 0).slice(0, 3);
+      for (let k = 1; wrong.length < 3; k++) if (!wrong.includes(ans + 100 * k)) wrong.push(ans + 100 * k);
+      qs.push({
+        type: "isoel", route, el0,
+        prompt: `아이소의 시작점(검은 점) 높이가 EL+${el0}이다. 끝점의 EL은?`,
+        options: [ans, ...wrong].map((v) => `EL+${v}`),
+        why: `수평 구간은 높이를 바꾸지 않는다. 올라간 구간은 더하고 내려간 구간은 뺀다: ${el0} ${vs.map((v) => (v > 0 ? "+ " + v : "− " + -v)).join(" ")} = EL+${ans}.`,
+      });
+    }
+    return qs;
+  }
+  // 틀린 보기: 한 구간 뒤집기, 남북·동서 뒤집기, 축 바꾸기. 평면도나 입면도 중 하나는 반드시 달라진다.
+  function isoWrong(route, r) {
+    const OPP = { E: "W", W: "E", N: "S", S: "N", U: "D", D: "U" }, SW = { E: "N", N: "E", W: "S", S: "W" };
+    const key = (rt) => rt.map(([d]) => d).join("");
+    const H = [], V = [];
+    route.forEach(([d], i) => ("UD".includes(d) ? V : H).push(i));
+    const flip = (i, map) => route.map(([d, L], j) => [j === i && map[d] ? map[d] : d, L]);
+    const makers = [
+      () => flip(r.pick(V), OPP),
+      () => flip(r.pick(H), OPP),
+      () => route.map(([d, L]) => ["NS".includes(d) ? OPP[d] : d, L]),
+      () => route.map(([d, L]) => ["EW".includes(d) ? OPP[d] : d, L]),
+      () => flip(r.pick(H), SW),
+      () => route.map(([d, L]) => [OPP[d], L]),
+    ];
+    const seen = new Set([key(route)]), out = [];
+    for (let t = 0; out.length < 3 && t < 80; t++) {
+      const rt = makers[t < 3 ? t : r.int(0, makers.length - 1)]();
+      if (!ACAD.routeValid(rt) || !ACAD.routeReadable(rt, "iso", 100) || seen.has(key(rt))) continue;
+      seen.add(key(rt));
+      out.push(rt);
+    }
+    return out;
+  }
   ACAD.viewQuizViewName = V;
 })();

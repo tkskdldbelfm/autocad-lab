@@ -10,6 +10,101 @@ window.ACAD = window.ACAD || {};
 
   ACAD.missionInstance = (m, seed) => (m && m.make ? Object.assign({}, m, m.make(ACAD.rng(seed)), { seed }) : m);
 
+  // 준비 도형이 아닌(태그 없는) 문자에서 'EL+숫자'를 읽어 값이 맞는지 본다. re가 있으면 그 글자도 있어야 한다.
+  function elText(c, K, v, tol, re) {
+    return K.texts(c).some((t) => {
+      if (t.tag || (re && !re.test(t.s))) return false;
+      const mm = String(t.s).replace(/,/g, "").match(/EL\s*\+?\s*(-?\d+(?:\.\d+)?)/i);
+      return !!mm && Math.abs(parseFloat(mm[1]) - v) <= tol;
+    });
+  }
+
+  // 3년차 드릴: 오른쪽 아이소를 보고 평면도(plan) 또는 입면도(elev)를 단선으로 옮긴다. 경로는 ACAD.pipeRoute(util.js).
+  function isoDrill(kind) {
+    const plan = kind === "plan";
+    return {
+      id: plan ? "d2-plan" : "d2-elev", stage: "2", after: plan ? "m2-p1" : "d2-plan",
+      title: plan ? "반복 드릴: 아이소 보고 평면 단선" : "반복 드릴: 아이소 보고 입면 단선",
+      layer: "배관", textH: 150,
+      hints: plan
+        ? ["아이소에서 N 화살표 쪽(오른쪽 위)이 북, 오른쪽 아래가 동입니다. 왼쪽 아래는 서, 왼쪽 위는 남.", "평면도는 위쪽(+y)이 북입니다. 동 1200 → @1200,0, 북 800 → @0,800, 서 → @-길이,0, 남 → @0,-길이.", "위·아래 구간은 평면에서 점이 됩니다. PL을 끊지 말고 다음 수평 구간을 이어 그린 뒤, 그 꼭짓점에 C로 원을 그리세요.", "끝 EL = 시작 EL + 올라간 길이 합 − 내려간 길이 합."]
+        : ["남쪽에서 북쪽을 보면 동이 오른쪽, 서가 왼쪽, 위가 위입니다. 북·남 구간은 보는 방향과 나란해서 점(원)이 됩니다.", "입면도의 y 좌표가 곧 EL입니다. 시작점의 y가 시작 EL이고, 위 600은 @0,600입니다.", "가장 높은 곳은 입면도에서 가장 위에 있는 선의 y 값입니다. 숫자는 아이소의 치수를 더하고 빼서 구합니다."],
+      make(r) {
+        const el0 = r.step(800, 2500, 100);
+        const route = ACAD.pipeRoute(r, {
+          legs: r.pick([4, 5]),
+          ok: (rt) => { const z = ACAD.routePts(rt).map((p) => p[2]); return Math.min(...z) + el0 >= 300 && (plan ? z[z.length - 1] !== 0 : Math.max(...z) > 0); },
+        });
+        const P3 = ACAD.routePts(route, [0, 0, el0]);
+        const pr = plan ? (p) => P(p[0], p[1]) : (p) => P(p[0], p[2]);
+        const skip = plan ? "UD" : "NS";
+        const legs = [], dots = [];
+        route.forEach(([d], i) => { if (skip.includes(d)) dots.push(pr(P3[i])); else legs.push([pr(P3[i]), pr(P3[i + 1])]); });
+        const ask = plan ? P3[P3.length - 1][2] : Math.max(...P3.map((p) => p[2]));
+        // 아이소 그림은 그릴 자리 오른쪽에 둔다(축척 없이 치수 = 길이로 그림)
+        const bb = G.bboxOf(P3.map(pr));
+        const iso0 = P3.map((p) => ACAD.routeProj.iso([p[0], p[1], p[2] - el0]));
+        const ibb = G.bboxOf(iso0.map(([x, y]) => P(x, y)));
+        const ox = bb.x1 + 1600 - ibb.x0, oy = (bb.y0 + bb.y1) / 2 - (ibb.y0 + ibb.y1) / 2;
+        const iso = iso0.map(([x, y]) => P(x + ox, y + oy));
+        const ix1 = ibb.x1 + ox, iy0 = ibb.y0 + oy, iy1 = ibb.y1 + oy;
+        const s0 = plan ? "0,0" : `0,${el0}`;
+        return {
+          route, el0, legs, dots, ask, iso,
+          goal: plan
+            ? `오른쪽 아이소의 배관을 평면도로 옮깁니다. 시작점 0,0에서 배관 층에 단선으로 그리고, 수직관 자리에 원을 그리고, 끝점 높이를 씁니다. 시작 높이는 EL+${el0}입니다.`
+            : `오른쪽 아이소의 배관을 남쪽에서 북쪽을 보는 입면도로 옮깁니다. 시작점 0,${el0}(y = EL)에서 배관 층에 단선으로 그리고, 남북 구간 자리에 원을 그리고, 가장 높은 곳의 EL을 씁니다.`,
+          view: [Math.min(bb.x0, 0) - 700, Math.min(bb.y0, iy0) - 800, ix1 + 1200, Math.max(bb.y1, iy1) + 1000],
+          setup(S) {
+            const g = { tag: "given" };
+            S.pline(iso.map((q) => [q.x, q.y]), false);
+            S.circle(iso[0].x, iso[0].y, 30);
+            // 치수는 그림 한가운데에서 먼 쪽에, 시작 높이는 첫 구간의 반대쪽에(글자끼리 덜 겹치게)
+            const ctr = G.mul(iso.reduce((m, q) => G.add(m, q), P(0, 0)), 1 / iso.length);
+            const tw = (str) => String(str).length * 84;
+            const v0 = G.unit(G.sub(iso[0], iso[1])), st = `시작 EL+${el0}`;
+            S.text(iso[0].x + v0.x * 120 - (v0.x < 0 ? tw(st) : 0), iso[0].y + v0.y * 120 - 50, 140, st, g);
+            route.forEach(([, L], i) => {
+              const a = iso[i], b = iso[i + 1], u = G.unit(G.sub(b, a)), vert = Math.abs(u.x) < 1e-9;
+              let n = vert ? P(1, 0) : P(-u.y, u.x);
+              const mid = G.mul(G.add(a, b), 0.5);
+              if (G.dot(G.sub(mid, ctr), n) < 0) n = P(-n.x, -n.y);
+              const m = G.add(mid, G.mul(n, 130));
+              S.text(m.x - (vert ? (n.x < 0 ? tw(L) : 0) : tw(L) / 2), m.y - (vert ? 50 : n.y < 0 ? 140 : 0), 140, String(L), g);
+            });
+            const nb = P(ix1 + 350, iy1 - 100), nd = G.unit(P(Math.cos(Math.PI / 6), 0.5)), nt = G.add(nb, G.mul(nd, 400));
+            S.line(nb.x, nb.y, nt.x, nt.y);
+            S.line(nt.x, nt.y, nt.x - nd.x * 140 - nd.y * 60, nt.y - nd.y * 140 + nd.x * 60);
+            S.line(nt.x, nt.y, nt.x - nd.x * 140 + nd.y * 60, nt.y - nd.y * 140 - nd.x * 60);
+            S.text(nt.x + 50, nt.y + 30, 160, "N", g);
+            S.text(ox + ibb.x0, iy1 + 450, 140, "아이소 (치수 mm, 축척 없음)", g);
+            S.text(Math.min(bb.x0, 0), Math.max(bb.y1, iy1) + 450, 140, plan ? "평면도: 시작점 0,0 · 위쪽이 북(N)" : `입면도(남쪽에서 북쪽을 보며): 시작점 0,${el0}`, g);
+          },
+          steps: [
+            {
+              text: plan ? `배관 층 PL: ${s0}에서 동서남북 구간을 순서대로 (위·아래 구간은 평면에서 길이 0)` : `배관 층 PL: ${s0}에서 동서·위아래 구간을 순서대로 (남북 구간은 입면에서 길이 0)`,
+              check: (c, K) => legs.every(([a, b]) => K.covers(c, a, b, { layer: "배관" })),
+            },
+            {
+              text: `${plan ? "위·아래로 가는 구간" : "남·북으로 가는 구간"} 자리마다 원 (배관 층, 반지름 자유) · ${dots.length}곳`,
+              check: (c, K) => dots.every((p) => K.circles(c, "배관").some((e) => K.nearPt(e.c, p, 0.05))),
+            },
+            {
+              text: plan ? "DT로 끝점 높이: EL+…" : "DT로 가장 높은 곳의 높이: EL+…",
+              check: (c, K) => elText(c, K, ask, 0.5),
+            },
+          ],
+        };
+      },
+      solve(S, m) {
+        const pts = [m.legs[0][0], ...m.legs.map((l) => l[1])];
+        S.pline(pts.map((q) => [q.x, q.y]), false, { layer: "배관" });
+        m.dots.forEach((q) => S.circle(q.x, q.y, 60, { layer: "배관" }));
+        S.text(m.legs[0][0].x, m.legs[0][0].y - 400, 150, `EL+${m.ask}`);
+      },
+    };
+  }
+
   // ======================================================================
   // 반복 드릴
   // ======================================================================
@@ -286,6 +381,40 @@ window.ACAD = window.ACAD || {};
         };
       },
       solve(S, m) { S.pline(m.rect.map((q) => [q.x, q.y]), true); S.line(m.X, 0, m.X + m.L, 0); },
+    },
+    isoDrill("plan"),
+    isoDrill("elev"),
+    {
+      id: "d2-dbl", stage: "2", after: "d2-elev", title: "반복 드릴: 복선 배관과 TOP·BOP",
+      layer: "중심선", textH: 60,
+      hints: ["외경표: 2\" 60.3 · 3\" 88.9 · 4\" 114.3 · 6\" 168.3 · 8\" 219.1. 복선은 호칭이 아니라 외경으로 그립니다.", "O → 외경의 절반 → 중심선 클릭 → 위쪽 클릭, 다시 중심선 → 아래쪽 클릭. 거리 입력 전에 L → C(현재)를 고르면 새 선이 현재 도면층에 생깁니다. 아니면 그린 뒤 MA로 도면층을 맞추세요.", "TOP = CL + 외경/2, BOP = CL − 외경/2. 소수 첫째 자리까지 쓰면 됩니다(57.15 → 57.2)."],
+      make(r) {
+        const [nps, od] = r.pick([["2\"", 60.3], ["3\"", 88.9], ["4\"", 114.3], ["6\"", 168.3], ["8\"", 219.1]]);
+        const el = r.step(900, 2400, 50), L = r.step(1500, 3000, 100), R = od / 2;
+        const top = el + R, bop = el - R;
+        return {
+          nps, od, el, L, R, top, bop,
+          goal: `${nps} 배관(CL EL+${el}, 길이 ${L})을 입면도에 복선으로 그리고 관 윗면(TOP)과 밑면(BOP)의 높이를 씁니다. y = 0이 EL+0 기준면입니다.`,
+          view: [-400, -300, L + 1100, el + 500],
+          setup(S) {
+            S.line(-300, 0, L + 300, 0);
+            S.text(-300, -150, 60, "EL+0 (기준면)", { tag: "given" });
+            S.text(L + 80, el - 30, 60, `${nps} CL EL+${el}`, { tag: "given" });
+          },
+          steps: [
+            { text: `중심선 층: 0,${el} → @${L},0`, check: (c, K) => K.covers(c, P(0, el), P(L, el), { layer: "중심선" }) },
+            { text: `배관 층: 관 바깥선 두 줄 (CL ± 외경/2, ${nps} 외경은 표에서)`, check: (c, K) => [top, bop].every((y) => K.covers(c, P(0, y), P(L, y), { layer: "배관" })) },
+            { text: "DT로 관 윗면 높이: TOP EL+…", check: (c, K) => elText(c, K, top, 0.06, /TOP/i) },
+            { text: "DT로 관 밑면 높이: BOP EL+…", check: (c, K) => elText(c, K, bop, 0.06, /BOP/i) },
+          ],
+        };
+      },
+      solve(S, m) {
+        const fx = (v) => (Math.round(v * 10) / 10).toFixed(1);
+        S.line(0, m.el, m.L, m.el, { layer: "중심선" });
+        S.line(0, m.top, m.L, m.top, { layer: "배관" }); S.line(0, m.bop, m.L, m.bop, { layer: "배관" });
+        S.text(m.L / 2, m.top + 60, 60, `TOP EL+${fx(m.top)}`); S.text(m.L / 2, m.bop - 120, 60, `BOP EL+${fx(m.bop)}`);
+      },
     },
   ];
   ACAD.DRILL_GOAL = 5;

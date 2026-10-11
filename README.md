@@ -17,14 +17,14 @@
 | 3면도·3D 뷰어 | `#/viewer?model=block-step` | 평면도·정면도·우측면도·3D 연동 하이라이트, 유리상자 펼치기, 제1각법/제3각법, 단면 보기(`&section=A\|B&half=1&cut=<mm>`) |
 | CAD 연습장 | `#/sandbox?mission=m0-06` | 웹 CAD(명령행·단축키·객체 스냅·직교·선택), 즉시 피드백, 미션 자동 채점 |
 | 단축키 훈련 | `#/shortcuts?mode=drill` | 참고표, 명령어 드릴, 기능키 드릴 |
-| 도면 퀴즈 | `#/viewquiz?set=basic` | 맞는 면 고르기, 빠진 면, 숨은선, 단면도 읽기, 보충(따낸 자리·원기둥·구멍), 배관 |
+| 도면 퀴즈 | `#/viewquiz?set=basic` | 맞는 면 고르기, 빠진 면, 숨은선, 단면도 읽기, 보충(따낸 자리·원기둥·구멍), 배관, 보충(단선 ↔ 아이소 반복·배관 숫자 계산) |
 | 배관 도면 랩 | `#/piping?focus=pid` | 냉각수 스키드 CW-SKID-01의 P&ID·평면·입면·아이소·3D 연결 |
 | 도면 검토 | `#/review?sheet=r2` | 오류가 숨은 도면에서 틀린 곳 클릭해 찾기 |
 
 ### 단계 기준
 
 - **입문·신입**: 도면 보는 법 + CAD 기본 기능. CAD 기능 레슨은 [CAD 기초강의 재생목록(35강)](https://www.youtube.com/playlist?list=PLiNT4faujDKPDU2-fNWF90ixqRbEaK3fX) 순서를 그대로 따릅니다(입문 01–16, 신입 17–35). 레슨마다 해당 강의 영상과 연습장 미션이 연결됩니다. 강의 레슨 뒤에는 보충 레슨(입문 0-S1–S3, 신입 1-S1–S3)이 있습니다. 작도 순서, 편집 명령 조합, 3면도 상자법과 CAD 작업 순서를 다루고, 숙달 점검표(반복 드릴은 힌트 없이 5회)로 끝납니다.
-- **3년차**: 배관 도면 읽기(크기·부품·기호·라인 번호·P&ID·평면·입면·아이소·스풀).
+- **3년차**: 배관 도면 읽기(크기·부품·기호·라인 번호·P&ID·평면·입면·아이소·스풀). 보충 레슨 2-S1–S4에서 읽는 순서와 구간표, 단선 ↔ 아이소 변환, 높이·치수 계산을 다루고 숙달 점검표와 졸업 과제(라인 1001 구간표)로 끝납니다.
 - **5년차**: 배관 도면 구현(경로 원칙·외부참조·평면/단면 작성·등각 아이소 작도·서포트·물량·간섭·개정).
 - **10년차**: 검토·CAD 표준·발행·3D 전환·인터페이스·코드 지도·코칭.
 
@@ -49,8 +49,9 @@ _tests/run.js         자동 검사 (사이트에는 올라가지 않음)
 
 - **레슨 추가·수정**: `js/data/lessons-<단계>.js`. `practice`의 `type`은 `sandbox | viewer | quiz | piping | shortcuts | review`, `id`는 미션·모델·퀴즈 세트·탭 id입니다. 본문에 `<div data-figure="coords"></div>`(figures.js의 도해)나 `<div data-figure="viewer:block-step"></div>`(3D 뷰어 삽입)를 넣을 수 있습니다.
 - **미션**: `js/data/missions.js`. 단계별 `check(ctx)`가 그린 객체를 채점합니다.
-- **반복 드릴**: `js/data/missions-extra.js`의 `drills`. `make(r)`가 난수(`r.step`, `r.pick`)로 숫자를 정해 `goal`·`steps`·`setup`을 돌려줍니다. 연습장의 '새 문제' 버튼이 숫자를 바꿉니다. `solve(S, m)`에 모범 답안을 그려 두면 자동 검사가 판정을 확인합니다(`S.erase(fn)`으로 미리 그린 객체를 지울 수 있습니다). 숙달 목표 횟수는 `ACAD.DRILL_GOAL`(5)입니다.
+- **반복 드릴**: `js/data/missions-extra.js`의 `drills`. `make(r)`가 난수(`r.step`, `r.pick`)로 숫자를 정해 `goal`·`steps`·`setup`을 돌려줍니다. 연습장의 '새 문제' 버튼이 숫자를 바꿉니다. `solve(S, m)`에 모범 답안을 그려 두면 자동 검사가 판정을 확인합니다(`S.erase(fn)`으로 미리 그린 객체를 지울 수 있습니다). 숙달 목표 횟수는 `ACAD.DRILL_GOAL`(5)입니다. 3년차 아이소 드릴과 생성형 퀴즈는 `util.js`의 `ACAD.pipeRoute(r, o)`로 배관 경로를 만듭니다(이웃 구간은 축이 다르고, 평면·입면·아이소 그림이 겹치지 않는 경로만).
 - **3D 따라그리기**: 같은 파일의 `view3d({...})`. `models.js`·`models-extra.js`의 모델 id와 정면도·평면도·우측면도의 선(`vis`), 숨은선(`hid`), 원(`circ`)을 각 투상도 왼쪽 아래 기준 좌표로 적습니다. 자동 검사가 이 정답표를 3D 모델 꼭짓점과 대조합니다.
+- **도면 퀴즈 세트**: `js/data/viewquiz.js`. 보기 0번이 정답이고 화면에서 섞습니다. `questions` 대신 `gen(seed)`와 `count`를 주면 풀 때마다 문제를 새로 만듭니다. `tip`(HTML)은 오른쪽 '이렇게 풀기' 칸에 나옵니다.
 - **확인 문제 보기 순서**: 화면에서 레슨·문제마다 고정된 순서로 섞입니다. 데이터의 `a`(정답 번호)는 원래 보기 순서 기준 그대로 적습니다.
 
 ### 자동 검사
@@ -65,7 +66,8 @@ node _tests/run.js
 - 레슨의 실습 링크가 실제 미션·모델·퀴즈·검토 시트를 가리키는지
 - 미션마다 빈 도면은 통과하지 않고 모범 답안은 모두 통과하는지(드릴은 seed 40개)
 - 3면도 정답표가 3D 모델 꼭짓점과 맞는지
-- 드릴 일부를 실제 연습장 명령(CIRCLE, OFFSET, FILLET, ARRAYPOLAR, ARRAYRECT, TRIM, MIRROR, JOIN, ROTATE)으로 풀어 통과하는지
+- 생성형 퀴즈(`gen`이 있는 세트)가 seed 200개에서 보기 4개를 서로 다르게 만들고, 틀린 아이소 보기가 주어진 평면·입면과 정말 다르고, 높이 정답이 맞는지
+- 드릴 일부를 실제 연습장 명령(CIRCLE, OFFSET, FILLET, ARRAYPOLAR, ARRAYRECT, TRIM, MIRROR, JOIN, ROTATE, LINE, PLINE, TEXT)으로 풀어 통과하는지
 - **3D 모델**: `js/data/models.js`(보충 모델은 `models-extra.js`). 부품마다 id와 설명을 주면 3면도와 하이라이트가 자동으로 따라옵니다.
 - **도면 검토 시트**: `js/pages/review.js`의 `sheets`. 오류 위치(x, y, r)와 설명을 적습니다.
 

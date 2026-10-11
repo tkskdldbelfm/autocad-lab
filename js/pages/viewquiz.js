@@ -1,4 +1,4 @@
-// 도면 퀴즈: #/viewquiz?set=basic|missing|hidden|section|piping
+// 도면 퀴즈: #/viewquiz?set=<세트 id>. gen이 있는 세트는 풀 때마다 문제를 새로 만든다.
 (function () {
   const esc = (s) => ACAD.esc(s);
   const H = () => ACAD.HLR;
@@ -59,17 +59,35 @@
     const north = kind === "plan" ? `<g transform="translate(${x0 + w - 110} ${y0 + 120})"><path d="M0 60L0 -60" class="t"/><path d="M0 -80L-18 -40L18 -40Z" class="f"/><text x="30" y="-40" style="font-size:64px">N</text></g>` : "";
     return `<svg viewBox="${x0} ${y0} ${w} ${h}" class="sl"><path d="${d}" class="s"/>${circles}${north}</svg><figcaption>${lbl}</figcaption>`;
   }
-  function isoLine(route) {
+  function isoLine(route, o = {}) {
     const pts = routePts(route);
     const c30 = Math.cos(Math.PI / 6);
     const P = pts.map((p) => [(p[0] + p[1]) * c30, (p[0] - p[1]) * 0.5 - p[2]]);
     const xs = P.map((p) => p[0]), ys = P.map((p) => p[1]);
-    const pad = 200;
-    const x0 = Math.min(...xs) - pad, y0 = Math.min(...ys) - pad, w = Math.max(...xs) - Math.min(...xs) + pad * 2 + 320, h = Math.max(...ys) - Math.min(...ys) + pad * 2;
+    const pad = o.labels ? 700 : 200;
+    const fs = Math.max(90, (Math.max(...xs) - Math.min(...xs) + Math.max(...ys) - Math.min(...ys)) * 0.035);
+    let labels = "";
+    if (o.labels) {
+      // 구간 길이는 그림 한가운데에서 먼 쪽에, 시작 높이는 첫 구간의 반대쪽에 둔다(글자끼리 덜 겹치게)
+      const cx = xs.reduce((m, v) => m + v, 0) / xs.length, cy = ys.reduce((m, v) => m + v, 0) / ys.length;
+      route.forEach(([, L], i) => {
+        const a = P[i], b = P[i + 1], len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, ux = (b[0] - a[0]) / len, uy = (b[1] - a[1]) / len;
+        const vert = Math.abs(ux) < 1e-9;
+        let nx = vert ? 1 : -uy, ny = vert ? 0 : ux;
+        if (((a[0] + b[0]) / 2 - cx) * nx + ((a[1] + b[1]) / 2 - cy) * ny < 0) { nx = -nx; ny = -ny; }
+        labels += `<text x="${(a[0] + b[0]) / 2 + nx * fs * 1.1}" y="${(a[1] + b[1]) / 2 + ny * fs * 1.1 + (vert ? fs * 0.35 : 0)}" text-anchor="${vert ? (nx > 0 ? "start" : "end") : "middle"}" style="font-size:${fs}px">${L}</text>`;
+      });
+      if (o.start) {
+        const L0 = Math.hypot(P[1][0] - P[0][0], P[1][1] - P[0][1]) || 1, vx = (P[0][0] - P[1][0]) / L0, vy = (P[0][1] - P[1][1]) / L0;
+        labels += `<text x="${P[0][0] + vx * fs * 0.6}" y="${P[0][1] + vy * fs * 0.6 + fs * 0.35}" text-anchor="${vx >= 0 ? "start" : "end"}" style="font-size:${fs}px">${ACAD.esc(o.start)}</text>`;
+      }
+    }
+    const padX = o.labels ? pad + fs * 5 : pad; // 시작 높이 글자가 옆으로 길다
+    const x0 = Math.min(...xs) - padX, y0 = Math.min(...ys) - pad, w = Math.max(...xs) - Math.min(...xs) + padX * 2 + 320, h = Math.max(...ys) - Math.min(...ys) + pad * 2;
     const nd = [c30, -0.5];
     const nx = x0 + w - 170, ny = y0 + 170;
-    return `<svg viewBox="${x0} ${y0} ${w} ${h}" class="sl"><path d="M${P.map((p) => p[0] + " " + p[1]).join("L")}" class="s"/>
-      <circle cx="${P[0][0]}" cy="${P[0][1]}" r="26" class="f"/>
+    return `<svg viewBox="${x0} ${y0} ${w} ${h}" class="sl"${o.labels ? " style=\"height:340px\"" : ""}><path d="M${P.map((p) => p[0] + " " + p[1]).join("L")}" class="s"/>
+      <circle cx="${P[0][0]}" cy="${P[0][1]}" r="26" class="f"/>${labels}
       <path d="M${nx - nd[0] * 90} ${ny - nd[1] * 90}L${nx + nd[0] * 90} ${ny + nd[1] * 90}" class="t" style="stroke-width:8"/><path d="M${nx + nd[0] * 110} ${ny + nd[1] * 110}L${nx + nd[0] * 60 - nd[1] * 28} ${ny + nd[1] * 60 + nd[0] * 28}L${nx + nd[0] * 60 + nd[1] * 28} ${ny + nd[1] * 60 - nd[0] * 28}Z" class="f"/>
       <text x="${nx + nd[0] * 120}" y="${ny + nd[1] * 120 - 10}" style="font-size:72px">N</text></svg>`;
   }
@@ -89,20 +107,22 @@
         </div></div>
         <div class="qz-sets">${sets.map((s) => `<a href="${ACAD.link.quiz(s.id)}" aria-current="${s.id === set.id}">
           <b>${esc(s.title)}</b><small>${esc(s.desc)}</small><br>
-          <span class="tag${ACAD.progress.has("quiz:" + s.id) ? " ok" : ""}" style="margin-top:8px">${best[s.id] != null ? `최고 ${best[s.id]}%` : `${s.questions.length}문제`}</span></a>`).join("")}</div>
+          <span class="tag${ACAD.progress.has("quiz:" + s.id) ? " ok" : ""}" style="margin-top:8px">${best[s.id] != null ? `최고 ${best[s.id]}%` : `${s.questions ? s.questions.length : s.count}문제`}</span></a>`).join("")}</div>
         <div class="qz-host"></div>
       </div>`);
       el.appendChild(page);
       const host = page.querySelector(".qz-host");
       let idx = 0, score = 0, answers = [], mini = null, seed = Date.now() % 1000;
+      const build = () => (set.gen ? set.gen(seed) : set.questions);
+      let qs = build();
       const killMini = () => { if (mini) { mini.destroy(); mini = null; } };
 
       function render() {
         killMini();
-        if (idx >= set.questions.length) return finish();
-        const q = set.questions[idx];
+        if (idx >= qs.length) return finish();
+        const q = qs[idx];
         const order = shuffle(q.options.map((_, i) => i), seed + idx * 7);
-        const dots = set.questions.map((_, i) => `<i class="${answers[i] === true ? "ok" : answers[i] === false ? "no" : ""}${i === idx ? " cur" : ""}"></i>`).join("");
+        const dots = qs.map((_, i) => `<i class="${answers[i] === true ? "ok" : answers[i] === false ? "no" : ""}${i === idx ? " cur" : ""}"></i>`).join("");
         let prompt = q.prompt, stim = "", opts = "", textOpts = false;
         if (q.type === "pick") {
           const tv = VN[q.view];
@@ -123,12 +143,16 @@
         } else if (q.type === "iso") {
           stim = `<figure class="qz-fig">${singleLine(q.route, "plan")}</figure><figure class="qz-fig">${singleLine(q.route, "elev")}</figure>`;
           opts = order.map((i, k) => `<button type="button" data-i="${i}" class="qz-fig"><span class="k">${"ABCD"[k]}</span>${isoLine(q.options[i])}</button>`).join("");
+        } else if (q.type === "isoel") {
+          stim = `<figure class="qz-fig">${isoLine(q.route, { labels: true, start: "시작 EL+" + q.el0 })}<figcaption>아이소 (치수 mm)</figcaption></figure>`;
+          opts = order.map((i, k) => `<button type="button" data-i="${i}"><span class="k">${"ABCD"[k]}</span>${esc(q.options[i])}</button>`).join("");
+          textOpts = true;
         } else {
           opts = order.map((i, k) => `<button type="button" data-i="${i}"><span class="k">${"ABCD"[k]}</span>${esc(q.options[i])}</button>`).join("");
           textOpts = true;
         }
         host.innerHTML = `<div class="qz"><div class="qz-card">
-            <div class="small muted">${esc(set.title)} · ${idx + 1} / ${set.questions.length}</div>
+            <div class="small muted">${esc(set.title)} · ${idx + 1} / ${qs.length}</div>
             <div class="qz-dots">${dots}</div>
             <div class="qz-q">${prompt}</div>
             ${stim ? `<div class="qz-stim">${stim}</div>` : ""}
@@ -137,7 +161,7 @@
           </div>
           <aside class="card flat small">
             <h4>이렇게 풀기</h4>
-            ${set.id === "section" ? `<p>1. 자르는 면의 위치와 보는 방향(화살표)을 먼저 정한다.</p><p>2. 자르는 면에 닿은 재료만 45° 해칭. 구멍 자리는 흰 틈으로 남는다.</p><p>3. 단면도에는 숨은선을 그리지 않는다. 파선이 보이면 자르지 않은 그림이다.</p><p>4. 리브·축·볼트를 길이 방향으로 자르면 해칭하지 않는다(KS).</p>`
+            ${set.tip ? set.tip : set.id === "section" ? `<p>1. 자르는 면의 위치와 보는 방향(화살표)을 먼저 정한다.</p><p>2. 자르는 면에 닿은 재료만 45° 해칭. 구멍 자리는 흰 틈으로 남는다.</p><p>3. 단면도에는 숨은선을 그리지 않는다. 파선이 보이면 자르지 않은 그림이다.</p><p>4. 리브·축·볼트를 길이 방향으로 자르면 해칭하지 않는다(KS).</p>`
               : set.id === "piping" ? `<p>평면도의 원은 수직관이다. 선이 원 테두리에서 멈추면 보는 쪽으로 올라오고, 원 중심까지 들어가면 멀어진다.</p><p>아이소에서 북쪽은 오른쪽 위, 동쪽은 오른쪽 아래, 위는 위다.</p>`
               : `<p>1. 보는 방향을 정한다(정면 = 앞에서, 평면 = 위에서, 우측면 = 오른쪽에서).</p><p>2. 그 방향에서 가장 앞에 있는 면의 윤곽을 실선으로 떠올린다.</p><p>3. 뒤에 숨은 모서리는 파선, 구멍의 축은 1점 쇄선.</p><p>4. 제3각법에서 평면도는 정면도 위, 우측면도는 오른쪽에 놓인다.</p>`}
           </aside></div>`;
@@ -146,7 +170,7 @@
       }
 
       function answer(i) {
-        const q = set.questions[idx];
+        const q = qs[idx];
         const ok = i === 0;
         answers[idx] = ok;
         if (ok) score++;
@@ -160,7 +184,7 @@
         const secQ = q.check?.section ? `&section=${q.check.section}${q.check.half ? "&half=1" : ""}` : "";
         const checkLink = model ? `<a class="btn small" href="${ACAD.link.viewer(model)}${part ? "&highlight=" + encodeURIComponent(part) : ""}${secQ}">3D로 확인</a>` : "";
         host.querySelector(".qz-fb").innerHTML = `<div class="callout ${ok ? "tip" : "warn"}"><b>${ok ? "맞았습니다." : "아쉽습니다. 초록색 테두리가 정답입니다."}</b>${esc(q.why)}</div>
-          <div class="qz-nav">${checkLink}<button type="button" class="btn primary small" data-next>${idx + 1 < set.questions.length ? "다음 문제" : "결과 보기"}</button></div>`;
+          <div class="qz-nav">${checkLink}<button type="button" class="btn primary small" data-next>${idx + 1 < qs.length ? "다음 문제" : "결과 보기"}</button></div>`;
         host.querySelector("[data-next]").addEventListener("click", () => { idx++; render(); });
         if (["part", "pickplan"].includes(q.type) && model) {
           const box = document.createElement("figure");
@@ -173,19 +197,19 @@
       }
 
       function finish() {
-        const pct = Math.round((score / set.questions.length) * 100);
+        const pct = Math.round((score / qs.length) * 100);
         const b = ACAD.store.get("quizbest", {});
         if (b[set.id] == null || pct > b[set.id]) { b[set.id] = pct; ACAD.store.set("quizbest", b); }
         if (pct >= 80) ACAD.progress.mark("quiz:" + set.id, true);
         const next = sets[(sets.indexOf(set) + 1) % sets.length];
         host.innerHTML = `<div class="qz-card">
           <div class="small muted">${esc(set.title)} 결과</div>
-          <div class="qz-score">${score} / ${set.questions.length} · ${pct}%</div>
+          <div class="qz-score">${score} / ${qs.length} · ${pct}%</div>
           <div class="qz-dots">${answers.map((a) => `<i class="${a ? "ok" : "no"}"></i>`).join("")}</div>
           <p>${pct >= 80 ? "세트 완료로 기록했습니다." : "80% 이상이면 세트 완료로 기록됩니다. 틀린 문제의 설명을 다시 보고 도전해 보세요."} 최고 기록 ${b[set.id]}%.</p>
           <div class="qz-nav"><button type="button" class="btn primary" data-retry>다시 풀기</button><a class="btn" href="${ACAD.link.quiz(next.id)}">다음 세트: ${esc(next.title)}</a><a class="btn ghost" href="${ACAD.link.viewer()}">3면도 뷰어로</a></div>
         </div>`;
-        host.querySelector("[data-retry]").addEventListener("click", () => { idx = 0; score = 0; answers = []; seed++; render(); });
+        host.querySelector("[data-retry]").addEventListener("click", () => { idx = 0; score = 0; answers = []; seed++; qs = build(); render(); });
       }
 
       render();

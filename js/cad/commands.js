@@ -673,14 +673,14 @@ window.ACAD = window.ACAD || {};
   });
 
   def("OFFSET", ["O"], "간격띄우기", function* (api, eng) {
-    const st = (eng.offOpt ||= { d: null, erase: false });
-    api.print(`현재 설정: 원본 지우기=${st.erase ? "예" : "아니오"}  도면층=원본  OFFSETGAPTYPE=0`);
+    const st = (eng.offOpt ||= { d: null, erase: false, layer: "S" });
+    api.print(`현재 설정: 원본 지우기=${st.erase ? "예" : "아니오"}  도면층=${st.layer === "C" ? "현재" : "원본"}  OFFSETGAPTYPE=0`);
     let dist = st.d, through = st.d == null;
     while (true) {
       const r = yield api.number(`간격띄우기 거리 지정 또는 [통과점(T)/지우기(E)/도면층(L)] <${st.d == null ? "통과점" : f4(st.d)}>:`, { def: st.d });
       if (r.kw === "T") { through = true; st.d = null; break; }
       if (r.kw === "E") { const k = yield api.kw("간격띄우기 후 원본 객체를 지우시겠습니까? [예(Y)/아니오(N)] <아니오>:", { def: "N" }); st.erase = k.kw === "Y"; continue; }
-      if (r.kw === "L") { yield api.kw("간격띄우기 객체의 도면층 옵션 입력 [현재(C)/원본(S)] <원본>:", { def: "S" }); continue; }
+      if (r.kw === "L") { const k = yield api.kw(`간격띄우기 객체의 도면층 옵션 입력 [현재(C)/원본(S)] <${st.layer === "C" ? "현재" : "원본"}>:`, { def: st.layer || "S" }); if (k.kw === "C" || k.kw === "S") st.layer = k.kw; continue; }
       if (r.value != null) { if (r.value <= 0) { api.print("값은 0보다 커야 합니다."); continue; } dist = r.value; st.d = dist; through = false; break; }
       if (r.enter) break;
       return;
@@ -704,7 +704,7 @@ window.ACAD = window.ACAD || {};
         const o = G.offset(src, d, s.pt);
         if (!o) { api.print("그 거리로는 간격띄우기할 수 없습니다(반지름이 0 이하가 됨)."); break; }
         const c = cloneFor(o);
-        c.layer = src.layer;
+        c.layer = st.layer === "C" && api.doc ? api.doc.cur : src.layer;
         const added = api.add(c);
         made.push(added.id);
         api.event("offset");
